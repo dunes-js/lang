@@ -1,3 +1,4 @@
+import type { TokenList } from "../lexer/Token.js"
 import type { NodeList } from "./AST.js"
 
 export interface NodeDecl {
@@ -14,4 +15,8 @@ export interface Node<T extends PropertyKey> {
 
 export interface Program<Nodes extends NodesObj> extends Node<"Program"> {
 	body: NodeList<Nodes>
+}
+
+export interface LookAhead<T extends string, X> {
+  (tokens: TokenList<T>): X
 }

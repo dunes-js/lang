@@ -1,6 +1,6 @@
 import { type TType, Token, TokenList, Lexer } from "../lexer/index.js";
 import { AST } from "./AST.js";
-import type { NodesObj, Node } from "./types.js";
+import type { NodesObj, Node, LookAhead } from "./types.js";
 
 class ParserError extends Error {
 	constructor(tokens: TokenList<any>, err: unknown) {
@@ -58,6 +58,10 @@ export abstract class Parser<
 			...props
 		} as Nodes[T] & {type: T}
 	}
+
+  protected lookAhead<X>(look: LookAhead<T, X>) {
+    return look(new TokenList(...this.#tokens));
+  }
 
 	protected eat<Ty extends TType<T>>(): Token<Ty> {
 		return this.#tokens.shift() as Token<Ty>;

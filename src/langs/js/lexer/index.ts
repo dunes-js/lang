@@ -16,9 +16,17 @@ export class JSLexer extends lexer.Lexer<TokenType> {
 			switch (value) {
 				case "let": return this.new("Let", ...chars);
 				case "var": return this.new("Var", ...chars);
-				case "const": return this.new("Const", ...chars);
+				case "switch": return this.new("Switch", ...chars);
+        case "case": return this.new("Case", ...chars);
+        case "break": return this.new("Break", ...chars);
+        case "continue": return this.new("Continue", ...chars);
+        case "const": return this.new("Const", ...chars);
+        case "for": return this.new("For", ...chars);
 				case "if": return this.new("If", ...chars);
+        case "of": return this.new("Of", ...chars);
+        case "in": return this.new("In", ...chars);
 				case "else": return this.new("Else", ...chars);
+        case "as": return this.new("As", ...chars);
 
 				case "new": return this.new("New", ...chars);
 				case "void": return this.new("Void", ...chars);
@@ -27,8 +35,13 @@ export class JSLexer extends lexer.Lexer<TokenType> {
         case "throw": return this.new("Throw", ...chars);
 				case "instanceof": return this.new("InstanceOf", ...chars);
 				case "typeof": return this.new("TypeOf", ...chars);
+        case "await": return this.new("Await", ...chars);
 				
-				case "function": return this.new("Function", ...chars);
+				case "from": return this.new("From", ...chars);
+        case "default": return this.new("Default", ...chars);
+        case "import": return this.new("Import", ...chars);
+        case "export": return this.new("Export", ...chars);
+        case "function": return this.new("Function", ...chars);
 				case "class": return this.new("Class", ...chars);
 				case "extends": return this.new("Extends", ...chars);
 				default: 
@@ -84,13 +97,17 @@ export class JSLexer extends lexer.Lexer<TokenType> {
 
 		if (this.is("+")) {
 			const plus = this.eat();
-			if (this.is("="))
-				return this.new("PlusEquals", plus, this.eat());
+			if (this.is("+"))
+				return this.new("DoublePlus", plus, this.eat());
+      if (this.is("="))
+        return this.new("PlusEquals", plus, this.eat());
 			return this.new("Plus", plus);
 		}
 
 		if (this.is("-")) {
 			const dash = this.eat();
+      if (this.is("-"))
+        return this.new("DoubleDash", dash, this.eat());
 			if (this.is("="))
 				return this.new("DashEquals", dash, this.eat());
 			return this.new("Dash", dash);
@@ -158,7 +175,9 @@ export class JSLexer extends lexer.Lexer<TokenType> {
 			case "'": return this.new("SingleQuotes", this.eat());
 			case '"': return this.new("DoubleQuotes", this.eat());
 
-			case "#": return this.new("Hash", this.eat());
+			case "!": return this.new("Exclamation", this.eat());
+      case "?": return this.new("Question", this.eat());
+      case "#": return this.new("Hash", this.eat());
 
 			case ";": return this.new("Semicolon", this.eat());
 			case ":": return this.new("Colon", this.eat());

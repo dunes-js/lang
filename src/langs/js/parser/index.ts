@@ -1,50 +1,17 @@
 import { parser } from "../../../index.js";
 import { JSLexer, type TokenType } from "../lexer/index.js";
 import type { 
-  AnyFor,
-  AnyImportSpecifier,
-  AnyNode,
-  ArrayExpression,
-  ArrayPattern,
-  ArrowFunctionExpression,
-  Assignee,
-  BlockComment,
-  BlockStatement,
-	CallExpression,
-	ClassBody,
-	ClassDeclaration,
-	ClassMethod,
-	ClassProperty,
-	ClassProps,
-	Consequent,
-	DocComment,
-	Expression, 
-	ExpressionStatement, 
-	ForInStatement, 
-	ForOfStatement, 
-	ForStatement, 
-	FunctionDeclaration, 
-	FunctionExpression, 
-	Identifier, 
-	IfStatement, 
-	ImportDeclaration, 
-	LineComment, 
-	NodeType, 
-	NumericLiteral, 
-	ObjectExpression, 
-	ObjectPattern, 
-	Property, 
-	RegExpLiteral, 
-	RestElement, 
-	SpreadElement, 
-	StringLiteral, 
-	SwitchCase, 
-	SwitchStatement, 
-	TemplateElement, 
-	TemplateStringLiteral, 
-	TryStatement, 
-	VariableDeclaration, 
-  VariableDeclarator
+  AnyFor, AnyImportSpecifier, AnyNode, ArrayExpression, ArrayPattern,
+  ArrowFunctionExpression, Assignee, BlockComment, BlockStatement,
+  CallExpression, ClassBody, ClassDeclaration, ClassMethod,
+	ClassProperty, ClassProps, Consequent, DocComment, Expression, 
+	ExpressionStatement, ForInStatement, ForOfStatement, ForStatement, 
+	FunctionDeclaration, FunctionExpression, Identifier, IfStatement, 
+	ImportDeclaration, LineComment, NodeType, NumericLiteral, 
+	ObjectExpression, ObjectPattern, Property, RegExpLiteral, 
+	RestElement, SourceType, SpreadElement, StringLiteral, SwitchCase, 
+	SwitchStatement, TemplateElement, TemplateStringLiteral, 
+	TryStatement, VariableDeclaration, VariableDeclarator
 } from "./types.js";
 import type { Token } from "../../../parser/lexer/Token.js";
 
@@ -54,10 +21,17 @@ import type { Token } from "../../../parser/lexer/Token.js";
  * - with
  * - label
  * - break, continue
+ * - Cannot use keyword as member expression
  * */
 
 
-export class JSParser extends parser.Parser<TokenType, NodeType, AnyNode> 
+export class JSParser extends parser.Parser<TokenType, AnyNode, {
+  ast: {
+    programProps: {
+      sourceType: SourceType
+    }
+  }
+}> 
 {
 
 	constructor() {
@@ -103,6 +77,7 @@ export class JSParser extends parser.Parser<TokenType, NodeType, AnyNode>
 			}
 
       case "Import": {
+        this.setProperty("sourceType", "esm");
         stmt = this.parseImportDeclaration()
         break;
       }
@@ -854,8 +829,14 @@ export class JSParser extends parser.Parser<TokenType, NodeType, AnyNode>
 		let member: Expression = this.parseMember();
 		this.trim();
 		if (this.is("OpenParen")) {
-			member = this.parseCall(member)
+			member = this.parseCall(member);
 		}
+    if (this.is("BackQuote")) {
+      member = this.new("TemplateStringExpression", {
+        tag: member,
+        quasi: this.parseTemplateString()
+      });
+    }
 		return member;
 	}
 

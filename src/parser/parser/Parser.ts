@@ -1,6 +1,6 @@
 import { type TType, Token, TokenList, Lexer } from "../lexer/index.js";
 import { AST } from "./AST.js";
-import type { Node, LookAhead } from "./types.js";
+import type { Node, LookAhead, ParseOptions, ParserOptions } from "./types.js";
 
 class ParserError extends Error {
 	constructor(tokens: TokenList<any>, err: unknown) {
@@ -12,8 +12,8 @@ class ParserError extends Error {
 
 export abstract class Parser<
 	TokenType extends string, 
-  NodeType extends string,
-  AnyNode extends Node<NodeType>
+  AnyNode extends Node<any>,
+  const Options extends ParserOptions
 > {
 
 	#lexer: Lexer<TokenType>
@@ -23,33 +23,53 @@ export abstract class Parser<
 
 	body: AnyNode[] = [];
 	#tokens!: TokenList<TokenType>
+  #ast!: AST<AnyNode, Options["ast"]>
 
-	produce(source: string): AST<NodeType, AnyNode> {
+	produce(source: string, options?: ParseOptions<Options["ast"]>): AST<AnyNode, Options["ast"]> {
 
-		const ast = new AST<NodeType, AnyNode>();
+		this.#ast = new AST<AnyNode, Options["ast"]>(options);
 		this.#tokens = this.#lexer.convert(source);
+
+    this.onLoad?.();
 
 		while (this.willContinue()) {
 			try {
 				const p = this.parse() as AnyNode;
 				this.body.push(p);
-				ast.program.body.push(p);
+				this.#ast.program.body.push(p);
 			}
 			catch(error) {
 				throw new ParserError(this.#tokens, error);
 			}
 		}
 
-		return ast;
+		return this.#ast;
 	}
 
-	protected abstract parse(): Node<NodeType>
+	protected abstract parse(): Node<AnyNode["type"]>;
+  
+  protected onLoad?(): void;
+
+  protected setProperty<
+    PropName extends keyof Options["ast"]["programProps"]>(
+      propName: PropName, 
+      value: Options["ast"]["programProps"][PropName]
+    ) {
+    this.#ast.program.props[propName] = value;
+  }
+
+  protected hasProperty<
+    PropName extends keyof Options["ast"]["programProps"]>(
+      propName: PropName,
+    ) {
+    return this.#ast.program.props[propName] != undefined;
+  }
 
 	protected willContinue() {
 		return this.#tokens[0]?.type !== "EOF";
 	}
 
-	protected new<T extends NodeType>(
+	protected new<T extends AnyNode["type"]>(
 		type: T, 
 		props: Omit<Extract<AnyNode, {type: T}>, "type">
 	): Extract<AnyNode, {type: T}>

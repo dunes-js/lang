@@ -1,57 +1,42 @@
-import type { Node, Program } from "./types.js";
+import type { 
+    ASTOptions,
+  AsyncTraveler, 
+  ConvertOptions, 
+  Node, 
+  ParseOptions, 
+  Traveler 
+} from "./types.js";
+import { Program } from "./Program.js";
 
 
-export class AST<NodeType extends string, AnyNode extends Node<any>> {
-	program: Program<AnyNode>
-	constructor() {
-		this.program = {
-			type: "Program", 
-			body: []
-		}
+export class AST<
+  AnyNode extends Node<any>, 
+  P extends ASTOptions
+> {
+	program: Program<AnyNode, P["programProps"]>
+	constructor(public options?: ParseOptions<P>) {
+		this.program = new Program();
+
+    if (options?.program) for (const key in options.program) {
+      this.program.props[key] = options.program[key]!;
+    }
 	}
 
-	json(i = 2): string {
-		return JSON.stringify(this.program, null, i);
-	}
+  travel(travel: Traveler<AnyNode>): void {
+    throw "Function travel not implemented";
+  }
 
-  travel(travel: Traveler<NodeType, AnyNode>) {
-    // return traveler()
-    throw "Not"
+  travelAsync(travel: AsyncTraveler<AnyNode>): Promise<void> {
+    throw "Function travelAsync not implemented";
+  }
+
+  convert(options?: ConvertOptions): string {
+    throw "Function convert not implemented";
+  }
+  async convertAsync(options?: ConvertOptions): Promise<string> {
+    throw "Function convertAsync not implemented";
   }
 }
 
 
-type TravelerNode<NodeType extends string, AnyNode extends Node<any>> = 
-  (path: PathNode<NodeType, AnyNode>) => any
 
-
-class PathNode<NodeType extends string, AnyNode extends Node<any>> {
-  constructor(
-    readonly node: Extract<AnyNode, {type: NodeType}>
-  ) {}
-  remove(): void {}
-  replaceWith(node: AnyNode): void {}
-}
-
-class NodeTransformer<NodeType extends string, AnyNode extends Node<any>> {
-
-  new<T extends NodeType>(
-    type: T, 
-    props: Omit<Extract<AnyNode, {type: T}>, "type">
-  ): Extract<AnyNode, {type: T}> {
-    return {
-      type,
-      ...props
-    } as Extract<AnyNode, {type: T}>
-  }
-
-  read<T extends NodeType>(source: string, as?: T): Extract<AnyNode, {type: T}> {
-    throw "Function read not implemented"
-  }
-}
-
-export type Traveler<NodeType extends string, AnyNode extends Node<any>> = {
-  (tr: NodeTransformer<NodeType, AnyNode>): {
-    [K in NodeType]?: TravelerNode<K, AnyNode>;
-  }
-}

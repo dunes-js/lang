@@ -10,6 +10,8 @@ export type NodeType = (
   | "BlockStatement"
   | "IfStatement"
 
+  | "TemplateStringExpression"
+  
   | "ImportDeclaration"
   | "ImportSpecifier"
   | "ImportDefaultSpecifier"
@@ -79,6 +81,8 @@ export type NodeType = (
 
 )
 
+export type SourceType = "cjs" | "esm"
+
 export type AnyNode = (
   | FunctionDeclaration
   | ClassDeclaration
@@ -134,6 +138,7 @@ export type AnyNode = (
   | Identifier
   
   | AssignmentPattern
+  | TemplateStringExpression
   | ArrayPattern
   
   | ClassBody
@@ -411,10 +416,16 @@ export interface ClassProperty extends ClassVar {
 	init: Init
 }
 
+export interface TemplateStringExpression extends Expression {
+	type: "TemplateStringExpression"
+	quasi: TemplateStringLiteral
+	tag: Expression
+}
+
 export interface CallExpression extends Expression {
-	type: "CallExpression"
-	args: Expression[]
-	caller: Expression
+  type: "CallExpression"
+  args: Expression[]
+  caller: Expression
 }
 
 export interface AssignmentExpression extends Expression {

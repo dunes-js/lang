@@ -1,10 +1,12 @@
 import { parser } from "../../../index.js";
 import { JSLexer, type TokenType } from "../lexer/index.js";
 import type { 
+    AnyDeclaration,
+    AnyExportDeclaration,
   AnyFor, AnyImportSpecifier, AnyNode, ArrayExpression, ArrayPattern,
   ArrowFunctionExpression, Assignee, BlockComment, BlockStatement,
   CallExpression, ClassBody, ClassDeclaration, ClassMethod,
-	ClassProperty, ClassProps, Consequent, DocComment, Expression, 
+	ClassProperty, ClassProps, Consequent, DocComment, ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclaration, ExportSpecifier, Expression, 
 	ExpressionStatement, ForInStatement, ForOfStatement, ForStatement, 
 	FunctionDeclaration, FunctionExpression, Identifier, IfStatement, 
 	ImportDeclaration, LineComment, NodeType, NumericLiteral, 
@@ -82,31 +84,19 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
         break;
       }
 
+      case "Export": {
+        this.setProperty("sourceType", "esm");
+        stmt = this.parseExportDeclaration()
+        break;
+      }
+
 			case "Var":
 			case "Let":
-			case "Const": {
-				stmt = this.parseVariableDeclaration()
-        break;
-			}
-
-			case "Async": {
-				this.eat();
-				this.trim()
-				if (!this.is("Function")) {
-					throw "Expected function keyword after async."
-				}
-
-				stmt = this.parseFunctionDeclaration(true);
-        break;
-			}
-
-			case "Function": {
-				stmt = this.parseFunctionDeclaration(false);
-        break;
-			}
-
+			case "Const":
+			case "Async":
+			case "Function":
 			case "Class": {
-				stmt = this.parseClassDeclaration();
+				stmt = this.parseDeclaration();
         break;
 			}
 
@@ -161,6 +151,40 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
     return stmt;
 	}
+
+  protected parseDeclaration(): AnyDeclaration {
+
+    switch(this.type()) {
+      case "Var":
+      case "Let":
+      case "Const": {
+        return this.parseVariableDeclaration()
+      }
+
+      case "Class": {
+        return this.parseClassDeclaration();
+      }
+
+      case "Function": {
+        return this.parseFunctionDeclaration(false);
+      }
+
+      case "Async": {
+        this.eat();
+        this.trim()
+        if (!this.is("Function")) {
+          throw "Expected function keyword after async."
+        }
+
+        return this.parseFunctionDeclaration(true);
+      }
+
+      default: {
+        throw `Unexpected type ${this.type()}`
+      }
+    }
+
+  }
 
   protected parseExpressionStatement(): ExpressionStatement {
     let stmt = this.new("ExpressionStatement", {
@@ -326,6 +350,96 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     }
 
     return specifiers;
+  }
+
+  protected parseExportDeclaration(): AnyExportDeclaration {
+    this.eatTrim();
+
+    if (this.is("Default")) {
+      return this.parseExportDefaultDeclaration();
+    }
+    else if (this.is("Asterisk")) {
+      return this.parseExportAllDeclaration();
+    }
+    else if (this.is("OpenBracket")) {
+      return this.parseExportAllDeclaration();
+    }
+    else {
+      return this.new("ExportNamedDeclaration", {
+        declaration: this.parseDeclaration(),
+        source: null,
+        specifiers: []
+      })
+    }
+  }
+
+  protected parseExportDefaultDeclaration(): ExportDefaultDeclaration {
+    this.eatTrim();
+    return this.new("ExportDefaultDeclaration", {
+      declaration: this.parseDeclaration()
+    })
+  }
+
+  protected parseExportAllDeclaration(): ExportAllDeclaration {
+    this.eatTrim();
+    let exported: Identifier | null = null;
+    if (this.if("As")) {
+      this.trim();
+      exported = this.parseIdentifier();
+      this.trim();
+    }
+    if (!this.if("From")) {
+      throw `Expected From after identifier in export all`;
+    }
+    this.trim();
+    if (!this.is("String")) {
+      throw `Expected string after from in export all`;
+    }
+    const source = this.parseString();
+    return this.new("ExportAllDeclaration", {
+      exported, source
+    })
+  }
+
+  protected parseExportNamedDeclaration(): ExportNamedDeclaration {
+
+    const specifiers: ExportSpecifier[] = [];
+     while (this.willContinue() && this.isnt("CloseBracket")) {
+
+      const exported = this.parseIdentifier();
+      let local = exported;
+      this.trim();
+      if (this.is("As")) {
+        this.eat();
+        this.trim()
+        local = this.parseIdentifier();
+        this.trim()
+      }
+
+      specifiers.push(this.new("ExportSpecifier", {local, exported}))
+
+      if (this.isnt("Comma")) break;
+      this.eat();
+      this.trim();
+    }
+
+    let source: StringLiteral | null = null;
+    
+
+    if (this.if("From")) {
+      this.trim();
+      if (this.isnt("String")) {
+        throw `Expected string after export from`
+      }
+      source = this.parseString();
+    }
+
+    return this.new("ExportNamedDeclaration", {
+      specifiers,
+      source,
+      declaration: null
+    })
+
   }
 
   protected parseFunctionDeclaration(async: boolean): FunctionDeclaration {

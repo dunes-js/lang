@@ -17,10 +17,11 @@ export type NodeType = (
   | "ImportDefaultSpecifier"
   | "ImportNamespaceSpecifier"
 
-  // | "ExportDeclaration"
-  // | "ExportSpecifier"
-  // | "ExportDefaultSpecifier"
-  // | "ExportNamespaceSpecifier"
+  | "ExportNamedDeclaration"
+  | "ExportDefaultDeclaration"
+  | "ExportAllDeclaration"
+  
+  | "ExportSpecifier"
 
 
 	| "BinaryExpression"
@@ -121,10 +122,11 @@ export type AnyNode = (
   | SpreadElement
   | ObjectPattern
 
-  // | ExportDeclaration
-  // | ExportSpecifier
-  // | ExportDefaultSpecifier
-  // | ExportNamespaceSpecifier
+  | ExportSpecifier
+  | ExportDefaultDeclaration
+  | ExportAllDeclaration
+  | ExportNamedDeclaration
+
   | UpdateExpression
   | UnaryExpression
   | ForInStatement
@@ -156,6 +158,18 @@ export type AnyNode = (
   | ThrowStatement
   | NewExpression
   | AwaitExpression
+)
+
+export type AnyDeclaration = (
+  | FunctionDeclaration
+  | ClassDeclaration
+  | VariableDeclaration
+)
+
+export type AnyExportDeclaration = (
+  | ExportDefaultDeclaration
+  | ExportAllDeclaration
+  | ExportNamedDeclaration
 )
 
 export type AnyImportSpecifier = (
@@ -339,6 +353,30 @@ export interface ImportDefaultSpecifier extends Expression {
 export interface ImportNamespaceSpecifier extends Expression {
   type: "ImportNamespaceSpecifier"
   local: Identifier
+}
+
+export interface ExportSpecifier extends Expression {
+  type: "ExportSpecifier"
+  exported: Identifier
+  local: Identifier
+}
+
+export interface ExportDefaultDeclaration extends Expression {
+  type: "ExportDefaultDeclaration"
+  declaration: Expression
+}
+
+export interface ExportAllDeclaration extends Expression {
+  type: "ExportAllDeclaration"
+  source: StringLiteral
+  exported: Identifier | null
+}
+
+export interface ExportNamedDeclaration extends Statement {
+  type: "ExportNamedDeclaration"
+  specifiers: ExportSpecifier[]
+  source: StringLiteral | null
+  declaration: AnyDeclaration | null
 }
 
 // export interface ExportDeclaration extends Statement {

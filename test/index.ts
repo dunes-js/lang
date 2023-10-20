@@ -19,37 +19,25 @@ const loadTime = Date.now() - loadStart;
 
 try {
   const parseStart = Date.now();
-	const result = jsParser.produce(`
-    void async function () {
-      if (myName >= 22) {
-        for (const every of all) {
-          for (;n + 1; n --) {
-            return new Mono("Jajajajajaja!")
-          }
-        }
-      }
-      else {
-        if (all) {
-
-        }
-        else if ((22, 2, 1)) {
-
-        }
-        else {
-          switch (hello > 2) {
-            case "jajaja":
-            case "wollolwo": {
-              
-            }
-            default: false;
-          }
-        }
-      }
-    }()
-  `);
+	const result = jsParser.produce(
+   'const $ = `hey man ${myVar} is good! ${james_2}\\\` is an good`' 
+  );
   console.log(js(result.program))
   console.log("Loaded in", loadTime + "ms");
   console.log("Parsed in", Date.now() - parseStart + "ms");
+
+
+
+  result.travel(tr => ({
+
+    Identifier(path) {
+      const fun = tr.read("function() {}", "FunctionExpression");
+      path.replaceWith(fun)
+    },
+
+    
+
+  }))
 }
 catch(err) {
 	console.log("ERROR")
@@ -59,4 +47,20 @@ catch(err) {
 /* Cannot use keyword as member expression */
 /* Destructuring */
 
-process.exit(0);
+// process.exit(0);
+
+
+const x = {
+
+  hello: {
+    name: 1,
+  },
+
+  alone: {
+    china: "jsja1",
+  },
+
+  wealth: {
+    iphone: 2,
+  },
+}

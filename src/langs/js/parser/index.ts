@@ -1,8 +1,9 @@
 import { parser } from "../../../index.js";
 import { JSLexer, type TokenType } from "../lexer/index.js";
 import type { 
-    AnyFor,
-    AnyImportSpecifier,
+  AnyFor,
+  AnyImportSpecifier,
+  AnyNode,
   ArrayExpression,
   ArrayPattern,
   ArrowFunctionExpression,
@@ -28,20 +29,35 @@ import type {
 	IfStatement, 
 	ImportDeclaration, 
 	LineComment, 
-	NodeTypes, 
+	NodeType, 
+	NumericLiteral, 
 	ObjectExpression, 
 	ObjectPattern, 
-	Parameter, 
 	Property, 
+	RegExpLiteral, 
+	RestElement, 
+	SpreadElement, 
 	StringLiteral, 
 	SwitchCase, 
 	SwitchStatement, 
+	TemplateElement, 
+	TemplateStringLiteral, 
+	TryStatement, 
 	VariableDeclaration, 
   VariableDeclarator
 } from "./types.js";
 import type { Token } from "../../../parser/lexer/Token.js";
 
-export class JSParser extends parser.Parser<TokenType, NodeTypes> 
+/**
+ * @TODO
+ * - export
+ * - with
+ * - label
+ * - break, continue
+ * */
+
+
+export class JSParser extends parser.Parser<TokenType, NodeType, AnyNode> 
 {
 
 	constructor() {
@@ -57,13 +73,17 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
   protected trimsemi() {
     this.trim();
     while (this.willContinue() && this.is("Semicolon")) {
-      this.trimeat();
+      this.eatTrim();
     }
   }
 
-  protected trimeat() {
+  protected eatTrim() {
     this.eat();
     this.trim()
+  }
+
+  protected cook(raw: string): string {
+    return raw === "\\"? raw : raw.replace(/\\/g, "");
   }
 
 	protected override parse(): Expression {
@@ -84,16 +104,6 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
 
       case "Import": {
         stmt = this.parseImportDeclaration()
-        break;
-      }
-
-      case "For": {
-        stmt = this.parseAnyFor()
-        break;
-      }
-
-      case "Switch": {
-        stmt = this.parseSwitchStatement()
         break;
       }
 
@@ -130,6 +140,21 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
         break;
 			}
 
+      case "Try": {
+        stmt = this.parseTryStatement();
+        break;
+      }
+
+      case "For": {
+        stmt = this.parseAnyFor()
+        break;
+      }
+
+      case "Switch": {
+        stmt = this.parseSwitchStatement()
+        break;
+      }
+
       case "Return": {
         this.eat();
         this.trim();
@@ -143,15 +168,6 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
         this.eat();
         this.trim();
         stmt = this.new("ThrowStatement", {
-          node: this.parseExpression()
-        });
-        break;
-      }
-
-      case "Void": {
-        this.eat();
-        this.trim();
-        stmt = this.new("VoidStatement", {
           node: this.parseExpression()
         });
         break;
@@ -251,7 +267,8 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
       ))
       this.trim();
       declarators.push(this.new("VariableDeclarator", {
-        id, init: this.parseExpression()
+        id, 
+        init: this.parseExpression()
       }))
       this.trim();
 
@@ -272,21 +289,11 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
     this.trim();
     this.expect("From", "Expected from after import specifiers.")
     this.trim();
-    let source: StringLiteral
-    if (this.is("SingleQuotes")) {
-      source = this.parseString("Single");
+    if (!this.is("String")) {
+      throw `Expected string after for`;
     }
-    else if (this.is("DoubleQuotes")) {
-      source = this.parseString("Double");
-    }
-    else {
-      throw "Expected string after from";
-    }
-
-    return this.new("ImportDeclaration", {
-      specifiers,
-      source
-    })
+    const source = this.parseString();
+    return this.new("ImportDeclaration", {specifiers, source});
   }
 
   protected parseImportSpecifiers(): AnyImportSpecifier[] {
@@ -378,37 +385,16 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
 		})
 	}
 
-  protected parseParameters(): Parameter[] {
-		const params: Parameter[] = [];
+  protected parseParameters(): Assignee[] {
+		const params: Assignee[] = [];
 
 		while(this.willContinue() && this.isnt("CloseParen")) {
-			let spread = this.is("Spread");
-			if (spread) {
-				this.eat();
-				this.trim();
-			}
-      const id = this.parseAssignee();
-
+			params.push(this.parseAssignmentPattern())
       this.trim();
-			let init: Expression | null = null;
 			
-      if (!spread && this.is("Equals")) {
-        this.eat();
-        this.trim();
-				init = this.parseExpression();
-			}
-
-			params.push(this.new("Parameter", {
-				spread,
-				id,
-				init,
-			}))
+      if (this.isnt("Comma")) break;
+      this.eat()
 			this.trim();
-			
-			if (this.type() === "Comma") {
-				this.eat()
-				this.trim();
-			}
 		}
 
 		this.expect("CloseParen", (
@@ -514,11 +500,11 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
 	}
 	
   protected parseAnyFor(): AnyFor {
-    this.trimeat();
+    this.eatTrim();
     const awaits = this.is("Await");
 
     if (awaits) {
-      this.trimeat();
+      this.eatTrim();
     }
 
     this.expect("OpenParen", "Expected parenthesis after 'for'");
@@ -562,7 +548,7 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
   }
   
   protected parseForOfStatement(left: Expression, awaits: boolean): ForOfStatement {
-    this.trimeat();
+    this.eatTrim();
 
     const right = this.parseExpression();
     this.trim();
@@ -577,7 +563,7 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
   }
   
   protected parseForInStatement(left: Expression): ForInStatement {
-    this.trimeat();
+    this.eatTrim();
 
     const right = this.parseExpression();
     this.trim();
@@ -598,7 +584,7 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
     let test;
 
     if (this.is("Semicolon")) {
-      this.trimeat();
+      this.eatTrim();
       test = null;
     }
     else {
@@ -661,6 +647,36 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
     return if_stmt;
 	}
   
+  protected parseTryStatement(): TryStatement {
+    this.eat();
+    this.trim();
+    const block = this.parseBlock();
+    let handler;
+    if (this.is("Catch")) {
+      this.eatTrim();
+      this.expect("OpenParen", "Expected open parenthesis after catch");
+      this.trim();
+      const param = this.parseIdentifier();
+      this.trim();
+      this.expect("CloseParen", "Expected close parenthesis after catch");
+      this.trim();
+      handler = this.new("CatchClause", {param, body: this.parseBlock()});
+    }
+    else {
+      handler = null;
+    }
+    let finalizer;
+    if (this.is("Finally")) {
+      this.eatTrim();
+      finalizer = this.parseBlock();
+    }
+    else {
+      finalizer = null;
+    }
+
+    return this.new("TryStatement", {block, handler, finalizer});
+  }
+  
   protected parseSwitchStatement(): SwitchStatement {
     this.eat();
     this.trim();
@@ -685,7 +701,7 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
     while (this.willContinue() && this.isnt("CloseBracket")) {
 
       if (this.is("Case")) {
-        this.trimeat();
+        this.eatTrim();
         const test = this.parseExpression();
         this.expect("Colon", "Expected colon after switch case expression");
         this.trim();
@@ -700,7 +716,7 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
         cases.push(this.new("SwitchCase", {consequent, test}))
       }
       else if (this.is("Default")) {
-        this.trimeat();
+        this.eatTrim();
         this.expect("Colon", "Expected colon after switch default case");
         this.trim();
         const consequent = this.parseConsequent();
@@ -741,7 +757,7 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
 		}
 
 		this.expect("CloseBracket", "Expected bracket to end block");
-		this.trim();
+		this.trimsemi();
 		return this.new("BlockStatement", {body: body})
 	}
 
@@ -819,6 +835,7 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
       "TripleEquals",
       "MoreThanEqual", "MoreThan",
       "LessThanEqual", "LessThan",
+      "InstanceOf",
     )) {
       const operator = this.eat().type;
       this.trim();
@@ -875,7 +892,7 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
 		this.trim();
 		const args: Expression[] = [];
 		while(this.willContinue() && this.isnt("CloseParen")) {
-			args.push(this.parseExpression());
+			args.push(this.parseArgument());
 			this.trim();
 			
 			if (this.type() === "Comma") {
@@ -920,25 +937,36 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
     }
   }
 
-  protected parseSubAssignee(): Assignee {
-    const left = this.parseAssignee();
+  protected parseAssignmentPattern(): Assignee {
+    
+    let left;
+    if (this.is("Spread")) {
+      this.eatTrim();
+      left = this.parseRestElement();
+    }
+    else left = this.parseAssignee();
+
     this.trim();
-    if (this.willContinue() && this.isAny(
-      "Equals", "PlusEquals", "DashEquals",
-      "PercentEquals", "SlashEquals", "AsteriskEquals"
-    )) {
-      const operator = this.eat().type;
+    if (this.willContinue() && this.is("Equals")) {
+      this.eat().type;
       this.trim();
       const right = this.parseExpression();
       this.trim();
 
       return this.new("AssignmentPattern", {
         left, 
-        operator, 
         right
       })
     }
     return left;
+  }
+
+  protected parseArgument(): Expression {
+    if (this.is("Spread")) {
+      this.eatTrim();
+      return this.parseSpreadElement();
+    }
+    return this.parseExpression();
   }
 
   protected parsePrimary(): Expression {
@@ -964,12 +992,12 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
         return this.parseLineComment();
       }
 
-      case "SingleQuotes": {
-        return this.parseString("Single"); 
+      case "String": {
+        return this.parseString();
       }
 
-      case "DoubleQuotes": {
-        return this.parseString("Double");
+      case "BackQuote": {
+        return this.parseTemplateString();
       }
 
 			case "New": {
@@ -978,14 +1006,6 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
 
       case "Await": {
         return this.parseKeywordExpression("AwaitExpression")
-      }
-
-      case "TypeOf": {
-        return this.parseKeywordExpression("TypeOfExpression")
-      }
-
-      case "InstanceOf": {
-        return this.parseKeywordExpression("InstanceOfExpression")
       }
 
 			case "OpenBracket": {
@@ -1030,9 +1050,13 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
         return this.new("SequenceExpression", {nodes})
 			}
 
-			case "Number": {
-				return this.parseNumericLiteral();
+			case "Slash": {
+				return this.parseRegExpLiteral();
 			}
+
+      case "Number": {
+        return this.parseNumericLiteral();
+      }
 
 			case "Identifier": {
 				const argument = this.parseIdentifier();
@@ -1050,6 +1074,8 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
 
       case "Plus": 
       case "Exclamation": 
+      case "TypeOf": 
+      case "Void": 
       case "Dash": {
         const operator = this.eat().type;
         this.trim();
@@ -1176,30 +1202,63 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
 		return this.new("Identifier", {symbol})
 	}
 
-  protected parseKeywordExpression(nt: keyof NodeTypes): Expression {
+  protected parseKeywordExpression(nt: NodeType): Expression {
     this.eat();
     this.trim();
-    // @ts-expect-error
     return this.new(nt, {
       node: this.parseExpression()
     })
   }
  
-  protected parseString(quotes: "Single" | "Double"): StringLiteral {
-		this.eat();
-		const quoteType: TokenType = `${quotes}Quotes`;
-		let content = "";
-		while (this.willContinue() && this.type() !== quoteType) {
-			content += this.eat().value;
-		}
-		
-		this.expect(quoteType, "Expected closing quotes to end String literal.")
-		this.trim();
-		return this.new("StringLiteral", {
-			content,
-			quotes
-		});
+  protected parseString(): StringLiteral {
+    const raw = this.eat().value;
+    return this.new("StringLiteral", {
+      value: this.cook(raw).slice(1, -1),
+      raw,
+    })
 	}
+ 
+  protected parseTemplateString(): TemplateStringLiteral {
+    this.eatTrim();
+    const quasis: TemplateElement[] = [];
+    const expressions: Expression[] = [];
+    while (this.willContinue() && this.isnt("BackQuote")) {
+
+      let raw = "";
+      while (this.willContinue() && this.isntAny("OpenTemplate", "BackQuote")) {
+        if (this.is("BackSlash")) {
+          const slash = this.eat();
+          if (this.willContinue()) {
+            raw += this.eat().value;
+          }
+          else {
+            raw += slash;
+          }
+        }
+        else {
+          raw += this.eat().value;
+        }
+      }
+      const tail = this.is("BackQuote");
+      if (raw) {
+        quasis.push(this.new("TemplateElement", {
+          value: {
+            raw,
+            cooked: this.cook(raw),
+          },
+          tail
+        }))
+      }
+      if (this.if("OpenTemplate")) {
+        this.trim();
+        expressions.push(this.parseExpression());
+        this.trim();
+        this.expect("CloseBracket", "Expected close bracket to close expression");
+      }
+    }
+    this.eatTrim();
+    return this.new("TemplateStringLiteral", {quasis, expressions});
+  }
 
   protected parseArrayExpression(): ArrayExpression {
 
@@ -1207,7 +1266,7 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
     this.trim();
     const entries: Expression[] = [];
     while (this.willContinue() && this.type() !== "CloseSquare") {
-      entries.push(this.parseExpression());
+      entries.push(this.parseArgument());
       this.trim();
       if (this.type() === "Comma") {
         this.eat()
@@ -1222,13 +1281,21 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
     return array;
   }
 
+  protected parseRestElement(): RestElement {
+    return this.new("RestElement", {argument: this.parseExpression()});
+  }
+
+  protected parseSpreadElement(): SpreadElement {
+    return this.new("SpreadElement", {argument: this.parseExpression()});
+  }
+
   protected parseArrayPattern(): ArrayPattern {
 
     this.eat();
     this.trim();
     const entries: Expression[] = [];
     while (this.willContinue() && this.type() !== "CloseSquare") {
-      entries.push(this.parseSubAssignee());
+      entries.push(this.parseAssignmentPattern());
       this.trim();
       if (this.type() === "Comma") {
         this.eat()
@@ -1249,20 +1316,25 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
     const props: Property[] = [];
     while (this.willContinue() && this.type() !== "CloseBracket") {
 
-      const key = this.expect("Identifier", 
-        "Expected identifier as key"
-      ).value;
-      this.trim();
-      let value: Expression | null = null;
+      if (this.is("Spread")) {
 
-      if (this.is("Colon")) {
-        this.eat();
-        this.trim();
-        value = this.parseExpression();
-        this.trim();
       }
+      else {
+        const key = this.expect("Identifier", 
+          "Expected identifier as key"
+        ).value;
+        this.trim();
+        let value: Expression | null = null;
 
-      props.push(this.new("Property", {key, init: value}));
+        if (this.is("Colon")) {
+          this.eat();
+          this.trim();
+          value = this.parseExpression();
+          this.trim();
+        }
+
+        props.push(this.new("Property", {key, init: value}));
+      }
 
       if (this.type() === "Comma") {
         this.eat()
@@ -1311,7 +1383,7 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
     return obj;
   }
 
-  protected parseNumericLiteral() {
+  protected parseNumericLiteral(): NumericLiteral {
     let raw = this.eat().value;
     let float = this.type() === "Period";
 
@@ -1326,6 +1398,24 @@ export class JSParser extends parser.Parser<TokenType, NodeTypes>
       value: parseInt(raw),
       raw,
       float
+    })
+  }
+
+  protected parseRegExpLiteral(): RegExpLiteral {
+    this.eatTrim();
+    let pattern = "";
+    while (this.willContinue() && this.isnt("Slash")) {
+      pattern += this.eat().value;
+    }
+    this.eat();
+    let flags = null;
+    if (this.is("Identifier")) {
+      flags = this.eat().value;
+    }
+    return this.new("RegExpLiteral", {
+      value: {},
+      raw: `/${pattern}/${flags||""}`,
+      regex: {pattern, flags}
     })
   }
 }

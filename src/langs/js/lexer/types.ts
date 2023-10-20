@@ -14,7 +14,11 @@ export type TokenType = lexer.TType<(
   | "From"
   | "Default"
 	| "Class"
+  | "Finally"
+  | "Try"
+  | "Catch"
   | "As"
+  | "String"
 	| "If"
   | "Of"
   | "Switch"
@@ -54,6 +58,7 @@ export type TokenType = lexer.TType<(
 	| "SlashEquals"
 	| "Percent"
 	| "PercentEquals"
+  | "OpenTemplate"
 	| "Asterisk"
 	| "AsteriskEquals"
 	
@@ -72,9 +77,9 @@ export type TokenType = lexer.TType<(
   | "MoreThanEqual"
 
 	| "Spread"
+  | "BackSlash"
 	| "Extends"
-	| "DoubleQuotes"
-	| "SingleQuotes"
+	| "BackQuote"
 
 	| "DoubleSlash"
 	| "SlashAsterisk"

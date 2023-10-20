@@ -39,12 +39,13 @@ export type NodeType = (
   | "AssignmentPattern"
   | "EmptyExpression"
 
-	| "NumericLiteral"
 	| "Property"
 	| "Parameter"
-	| "StringLiteral"
 	| "Identifier"
   | "UnaryExpression"
+  
+  | "TryStatement"
+  | "CatchClause"
   
   | "UpdateExpression"
   | "ForInStatement"
@@ -61,14 +62,21 @@ export type NodeType = (
 	| "FunctionExpression"
   | "ArrowFunctionExpression"
 
+  | "RestElement"
+  | "SpreadElement"
+
   | "ReturnStatement"
   | "ThrowStatement"
 	| "NewExpression"
   | "AwaitExpression"
-	| "TypeOfExpression"
-	| "InstanceOfExpression"
-	| "VoidStatement"
   | "ExpressionStatement"
+
+  | "NumericLiteral"
+  | "StringLiteral"
+  | "RegExpLiteral"
+  | "TemplateStringLiteral"
+  | "TemplateElement"
+
 )
 
 export type AnyNode = (
@@ -76,6 +84,7 @@ export type AnyNode = (
   | ClassDeclaration
   | FunctionDeclaration
   | VariableDeclaration
+  | VariableDeclarator
   | BlockStatement
   | IfStatement
 
@@ -90,10 +99,23 @@ export type AnyNode = (
   | DocComment
   | EmptyExpression
 
+  | RegExpLiteral
+  | StringLiteral
+  | NumericLiteral
+  | TemplateStringLiteral
+  | TemplateElement
+
   | ImportDeclaration
   | ImportSpecifier
   | ImportDefaultSpecifier
   | ImportNamespaceSpecifier
+
+  | TryStatement
+  | CatchClause
+
+  | RestElement
+  | SpreadElement
+  | ObjectPattern
 
   // | ExportDeclaration
   // | ExportSpecifier
@@ -107,10 +129,8 @@ export type AnyNode = (
 
   | ArrayExpression
   | ObjectExpression
-  | NumericLiteral
   | Property
   | Parameter
-  | StringLiteral
   | Identifier
   
   | AssignmentPattern
@@ -131,9 +151,6 @@ export type AnyNode = (
   | ThrowStatement
   | NewExpression
   | AwaitExpression
-  | TypeOfExpression
-  | InstanceOfExpression
-  | VoidStatement
 )
 
 export type AnyImportSpecifier = (
@@ -153,6 +170,14 @@ export type Assignee = (
   | ObjectPattern
   | ArrayPattern
   | AssignmentPattern
+  | RestElement
+)
+
+export type Literal = (
+  | RegExpLiteral
+  | StringLiteral
+  | NumericLiteral
+  | TemplateStringLiteral
 )
 
 export type AnyFor = (
@@ -177,72 +202,10 @@ export type Consequent = (
   | EmptyExpression
 )
 
-export interface NodeTypes extends parser.NodesObj {
-	VariableDeclaration: VariableDeclaration
-  VariableDeclarator: VariableDeclarator
-	FunctionDeclaration: FunctionDeclaration
-	ClassDeclaration: ClassDeclaration
-	BlockStatement: BlockStatement
-  ExpressionStatement: ExpressionStatement
-	IfStatement: IfStatement
-
-  ImportDeclaration: ImportDeclaration
-  ImportSpecifier: ImportSpecifier
-  ImportDefaultSpecifier: ImportDefaultSpecifier
-  ImportNamespaceSpecifier: ImportNamespaceSpecifier
-
-  // ExportDeclaration: ExportDeclaration
-  // ExportSpecifier: ExportSpecifier
-  // ExportDefaultSpecifier: ExportDefaultSpecifier
-  // ExportNamespaceSpecifier: ExportNamespaceSpecifier
-
-  UpdateExpression: UpdateExpression
-  UnaryExpression: UnaryExpression
-  ForInStatement: ForInStatement
-  ForOfStatement: ForOfStatement
-  ForStatement: ForStatement
-
-  BinaryExpression: BinaryExpression
-  SequenceExpression: SequenceExpression
-  CallExpression: CallExpression
-  AssignmentExpression: AssignmentExpression
-  MemberExpression: MemberExpression
-
-  Identifier: Identifier
-	NumericLiteral: NumericLiteral
-  StringLiteral: StringLiteral
-	
-  ArrayExpression: ArrayExpression
-	ObjectExpression: ObjectExpression
-	Property: Property
-	
-  SwitchStatement: SwitchStatement
-  SwitchCase: SwitchCase
-
-  AssignmentPattern: AssignmentPattern
-	Parameter: Parameter
-	ArrayPattern: ArrayPattern
-  ObjectPattern: ObjectPattern
-  
-  ClassBody: ClassBody
-  ClassMethod: ClassMethod
-	ClassProperty: ClassProperty
-
-	BlockComment: BlockComment
-	LineComment: LineComment
-	DocComment: DocComment
-
-	FunctionExpression: FunctionExpression
-  ArrowFunctionExpression: ArrowFunctionExpression
-
-  ReturnStatement: ReturnStatement
-  ThrowStatement: ThrowStatement
-  EmptyExpression: EmptyExpression
-	NewExpression: NewExpression
-  AwaitExpression: AwaitExpression
-	TypeOfExpression: TypeOfExpression
-	InstanceOfExpression: InstanceOfExpression
-	VoidStatement: VoidStatement
+export type NodeTransformer = {
+  [K in NodeType]?: {
+    (p: Extract<AnyNode, {type: K}>): any
+  }
 }
 
 export interface Expression extends parser.Node<NodeType> {}
@@ -266,11 +229,22 @@ export interface UpdateExpression extends Expression {
   prefix: boolean
 }
 
-export interface UnaryExpression extends Expression {
-  type: "UnaryExpression"
+export interface ArgumentExpression extends Expression {
   argument: Expression
+}
+
+export interface UnaryExpression extends ArgumentExpression {
+  type: "UnaryExpression"
   operator: TokenType
   prefix: boolean
+}
+
+export interface RestElement extends ArgumentExpression {
+  type: "RestElement"
+}
+
+export interface SpreadElement extends ArgumentExpression {
+  type: "SpreadElement"
 }
 
 export interface ForInStatement extends Statement {
@@ -301,6 +275,19 @@ export interface IfStatement extends Statement {
   test: Expression
   consequent: Consequent
   alternate: IfStatement | Consequent | null
+}
+
+export interface TryStatement extends Statement {
+  type: "TryStatement"
+  block: BlockStatement
+  handler: CatchClause | null
+  finalizer: BlockStatement | null
+}
+
+export interface CatchClause extends Statement {
+  type: "CatchClause"
+  param: Identifier
+  body: BlockStatement
 }
 
 export interface SwitchStatement extends Statement {
@@ -373,7 +360,7 @@ export interface ImportNamespaceSpecifier extends Expression {
 export interface FunctionDeclaration extends Statement {
   type: "FunctionDeclaration"
   id: Identifier
-  params: Parameter[]
+  params: Assignee[]
   async: boolean
   generator: boolean
   body: BlockStatement
@@ -415,7 +402,7 @@ interface ClassVar extends Expression {
 
 export interface ClassMethod extends ClassVar {
 	type: "ClassMethod"
-	params: Parameter[]
+	params: Assignee[]
 	body: BlockStatement
 }
 
@@ -459,10 +446,35 @@ export interface NumericLiteral extends Expression {
 	float: boolean
 }
 
+export interface RegExpLiteral extends Expression {
+  type: "RegExpLiteral"
+  raw: string
+  value: {}
+  regex: {
+    pattern: string
+    flags: string | null
+  }
+}
+
 export interface StringLiteral extends Expression {
 	type: "StringLiteral"
-	content: string
-	quotes: "Single" | "Double"
+	value: string
+  raw: string
+}
+
+export interface TemplateStringLiteral extends Expression {
+  type: "TemplateStringLiteral"
+  expressions: Expression[]
+  quasis: TemplateElement[]
+}
+
+export interface TemplateElement extends Expression {
+  type: "TemplateElement"
+  value: {
+    cooked: string
+    raw: string
+  }
+  tail: boolean
 }
 
 export interface Identifier extends Expression {
@@ -499,7 +511,6 @@ export interface Property extends Expression {
 
 export interface Parameter extends Expression {
 	type: "Parameter"
-	spread: boolean
 	id: Assignee
 	init: Init
 }
@@ -514,11 +525,6 @@ export interface ThrowStatement extends Statement {
   node: Expression
 }
 
-export interface VoidStatement extends Statement {
-  type: "VoidStatement"
-  node: Expression
-}
-
 export interface NewExpression extends Expression {
 	type: "NewExpression"
 	node: Expression
@@ -529,19 +535,8 @@ export interface AwaitExpression extends Expression {
 	node: Expression
 }
 
-export interface TypeOfExpression extends Expression {
-  type: "TypeOfExpression"
-  node: Expression
-}
-
-export interface InstanceOfExpression extends Expression {
-	type: "InstanceOfExpression"
-	node: Expression
-}
-
 export interface AssignmentPattern extends Expression {
   type: "AssignmentPattern"
-  operator: TokenType
   left: Assignee
   right: Expression
 }
@@ -553,7 +548,7 @@ export interface SequenceExpression extends Expression {
 
 export interface BaseFunctionExpression extends Expression {
   async: boolean
-  params: Parameter[]
+  params: Assignee[]
 }
 
 export interface FunctionExpression extends BaseFunctionExpression {

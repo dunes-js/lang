@@ -5,9 +5,48 @@ export type { TokenType }
 export class JSLexer extends lexer.Lexer<TokenType> {
 
 	protected override read() {
-		if (this.isLetter()) {
+
+    if (this.is('"')) {
+      const chars: lexer.Char[] = [this.eat()];
+
+      while (!this.finished() && !this.is('"')) {
+        const val = this.eat();
+        chars.push(val);
+        if (val.value === '\\') {
+          if (this.finished()) {
+            throw "Expected character after escape";
+          }
+          chars.push(this.eat());
+        }
+      }
+      return this.new("String", ...chars, this.eat());
+    }
+
+    if (this.is("'")) {
+      const chars: lexer.Char[] = [this.eat()];
+
+      while (!this.finished() && !this.is("'")) {
+        const val = this.eat();
+        chars.push(val);
+        if (val.value === '\\') {
+          if (this.finished()) {
+            throw "Expected character after escape";
+          }
+          chars.push(this.eat());
+        }
+      }
+      return this.new("String", ...chars, this.eat());
+    }
+
+    if (this.is("$") && this.is("{", 1)) {
+      return this.new("OpenTemplate", this.eat(), this.eat());
+    }
+
+		if (this.isLetter() || this.is("$")) {
 			const chars: lexer.Char[] = [this.eat()];
-			while (!this.finished() && (this.isLetter() || this.match(/[0-9]|_/))) {
+			while (!this.finished() && (
+        this.isLetter() || this.is("$") || this.match(/[0-9]|_/)
+      )) {
 				chars.push(this.eat());
 			}
 
@@ -17,6 +56,9 @@ export class JSLexer extends lexer.Lexer<TokenType> {
 				case "let": return this.new("Let", ...chars);
 				case "var": return this.new("Var", ...chars);
 				case "switch": return this.new("Switch", ...chars);
+        case "try": return this.new("Try", ...chars);
+        case "catch": return this.new("Catch", ...chars);
+        case "finally": return this.new("Finally", ...chars);
         case "case": return this.new("Case", ...chars);
         case "break": return this.new("Break", ...chars);
         case "continue": return this.new("Continue", ...chars);
@@ -172,8 +214,8 @@ export class JSLexer extends lexer.Lexer<TokenType> {
 			case"\n": return this.new("Br", this.eat());
 			case"\t": return this.new("Tab", this.eat());
 			case " ": return this.new("Space", this.eat());
-			case "'": return this.new("SingleQuotes", this.eat());
-			case '"': return this.new("DoubleQuotes", this.eat());
+			case '`': return this.new("BackQuote", this.eat());
+      case '\\': return this.new("BackSlash", this.eat());
 
 			case "!": return this.new("Exclamation", this.eat());
       case "?": return this.new("Question", this.eat());

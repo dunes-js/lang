@@ -1,4 +1,4 @@
-import type { Node } from "./types.js";
+import type { Node } from "../parser/types.js";
 
 
 

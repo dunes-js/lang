@@ -15,8 +15,9 @@ export class Token<
 		this.#value = new TokenValue(chars);
 	}
 
-  setTag(tag: Tag): void {
+  setTag(tag: Tag) {
     this.#tags.push(tag);
+    return this;
   }
 
 	get value(): string {

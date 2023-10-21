@@ -6,6 +6,7 @@ export type NodeType = (
   | "ClassDeclaration"
   | "FunctionDeclaration"
   | "VariableDeclaration"
+  | "UsingDeclaration"
   | "VariableDeclarator"
   | "BlockStatement"
   | "IfStatement"
@@ -23,6 +24,7 @@ export type NodeType = (
   
   | "ExportSpecifier"
   | "LabeledStatement"
+  | "WithStatement"
   | "ConditionalExpression"
 
 	| "BinaryExpression"
@@ -35,7 +37,6 @@ export type NodeType = (
   
   | "BlockComment"
   | "LineComment"
-  | "DocComment"
 
   | "ObjectExpression"
   | "ObjectPattern"
@@ -94,10 +95,12 @@ export type AnyNode = (
   | FunctionDeclaration
   | ClassDeclaration
   | FunctionDeclaration
+  | UsingDeclaration
   | VariableDeclaration
   | VariableDeclarator
   | BlockStatement
   | IfStatement
+  | WithStatement
   | ConditionalExpression
 
   | BinaryExpression
@@ -108,7 +111,6 @@ export type AnyNode = (
   
   | BlockComment
   | LineComment
-  | DocComment
   | EmptyExpression
 
   | RegExpLiteral
@@ -178,6 +180,7 @@ export type AnyDeclaration = (
   | FunctionDeclaration
   | ClassDeclaration
   | VariableDeclaration
+  | UsingDeclaration
 )
 
 export type AnyExportDeclaration = (
@@ -195,6 +198,11 @@ export type AnyImportSpecifier = (
 export type AnyIdentifier = (
   | Identifier
   | PrivateIdentifier
+)
+
+export type AnyComment = (
+  | LineComment
+  | BlockComment
 )
 
 export type Assignee = (
@@ -222,7 +230,7 @@ export type PropExpression = (
   | SpreadElement
 )
 
-export type AnyFor = (
+export type AnyForStatement = (
   | ForStatement
   | ForOfStatement
   | ForInStatement
@@ -249,11 +257,6 @@ export interface Statement extends Expression {}
 
 export interface LineComment extends Expression {
   type: "LineComment"
-  content: string
-}
-
-export interface DocComment extends Statement {
-  type: "DocComment"
   content: string
 }
 
@@ -294,6 +297,13 @@ export interface VariableDeclarator extends Expression {
   init: Expression | null
 }
 
+
+export interface UsingDeclaration extends Statement {
+  type: "UsingDeclaration"
+  kind: "Using"
+  await: boolean
+  declarators: VariableDeclarator[]
+}
 // ----- Import
 
 export interface ImportDeclaration extends Statement {
@@ -446,6 +456,14 @@ export interface IfStatement extends Statement {
   alternate: IfStatement | Consequent | null
 }
 
+// ----- With Statement
+
+export interface WithStatement extends Statement {
+  type: "WithStatement"
+  namespace: Expression
+  body: Consequent
+}
+
 // ----- Try Statement
 
 export interface TryStatement extends Statement {
@@ -532,6 +550,7 @@ export interface ArrayPattern extends Expression {
 }
 
 export interface PropertyPattern extends Property {
+  key: Assignee
   type: "PropertyPattern"
   value: Assignee
 }
@@ -599,7 +618,6 @@ export interface ObjectExpression extends Expression {
 }
 
 export interface Property extends Expression {
-  key: Assignee
   kind: 'init'
   shorthand: boolean
   method: boolean
@@ -607,6 +625,7 @@ export interface Property extends Expression {
 }
 
 export interface PropertyExpression extends Property {
+  key: Expression
   type: "PropertyExpression"
   value: Expression
 }

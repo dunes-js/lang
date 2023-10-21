@@ -3,7 +3,7 @@ import { JSLexer, type TokenTag, type TokenType } from "../lexer/index.js";
 import type { 
   AnyDeclaration,
   AnyExportDeclaration,
-  AnyFor, 
+  AnyForStatement, 
   AnyIdentifier, 
   AnyImportSpecifier, 
   AnyNode, 
@@ -20,7 +20,6 @@ import type {
   ClassProperty, 
   ClassProp, 
   Consequent, 
-  DocComment, 
   DoWhileStatement, 
   ExportAllDeclaration, 
   ExportDefaultDeclaration, 
@@ -37,7 +36,6 @@ import type {
   IfStatement, 
   ImportDeclaration, 
   LineComment, 
-  NodeType, 
   NumericLiteral, 
   ObjectExpression, 
   ObjectPattern, 
@@ -57,13 +55,15 @@ import type {
   VariableDeclaration, 
   VariableDeclarator, 
   WhileStatement,
-  ClassExpression, 
+  ClassExpression,
+  WithStatement,
+  UsingDeclaration, 
 } from "./types.js";
 
 /**
  * @TODO
  * - optional
- * - with
+ * - indexed inside object
  * */
 
 export class JSParser extends parser.Parser<TokenType, AnyNode, {
@@ -96,11 +96,6 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
         break;
 			}
 
-			case "SlashDoubleAsterisk": {
-				stmt = this.parseDocComment()
-        break;
-			}
-
       case "Import": {
         this.setProperty("sourceType", "esm");
         stmt = this.parseImportDeclaration()
@@ -118,15 +113,22 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 			case "Const":
 			case "Async":
 			case "Function":
+      case "Using":
 			case "Class": {
 				stmt = this.parseDeclaration();
         break;
 			}
 
 			case "If": {
+        console.log("If?")
 				stmt = this.parseIfStatement();
         break;
 			}
+
+      case "With": {
+        stmt = this.parseWithStatement();
+        break;
+      }
 
       case "Try": {
         stmt = this.parseTryStatement();
@@ -176,8 +178,19 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
         break;
 			}
 
-			default:
+			default: {
+        if (this.is("Await") && this.lookAhead(tokens => {
+          tokens.shift();
+          while (["Br", "Tab", "Space"].includes(tokens[0]!.type)) 
+            tokens.shift();
+          return tokens[0]!.type === "Using";
+        })) {
+          this.eatTrim();
+          return this.parseUsingDeclaration(false);
+        }
+
 				return this.parseExpressionStatement();
+      }
 		}
 
     this.trimsemi();
@@ -198,17 +211,6 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     this.expect("AsteriskSlash", "Expected asterisk slash to end Block comment.")
     this.trim();
     return this.new("BlockComment", {content});
-  }
-
-  protected parseDocComment(): DocComment {
-    this.eat();
-    let content = "";
-    while (this.willContinue() && this.type() !== "AsteriskSlash") {
-      content += this.eat().value;
-    }
-    this.expect("AsteriskSlash", "Expected asterisk slash to end Doc comment.")
-    this.trim();
-    return this.new("DocComment", {content});
   }
 
   protected parseLineComment(): LineComment {
@@ -257,14 +259,23 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
   protected parseDeclaration(): AnyDeclaration {
     switch(this.type()) {
+      case "Using": {
+        return this.parseUsingDeclaration(false);
+      }
       case "Var":
       case "Let":
-      case "Const": return this.parseVariableDeclaration()
-      case "Class": return this.parseClassDeclaration();
-      case "Function": return this.parseFunctionDeclaration(false);
+      case "Const": {
+        return this.parseVariableDeclaration();
+      }
+      case "Class": {
+        return this.parseClassDeclaration();
+      }
+      case "Function": {
+        return this.parseFunctionDeclaration(false);
+      }
       case "Async": {
         this.eat();
-        this.trim()
+        this.trim();
         if (!this.is("Function")) throw "Expected function keyword after async.";
         return this.parseFunctionDeclaration(true);
       }
@@ -272,16 +283,30 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     }
   }
 
+  // ----- Using
+
+  protected parseUsingDeclaration(awaits: boolean): UsingDeclaration {
+		this.eatTrim();
+    const declarators = this.parseVarDeclarators("Using");
+		const use = this.new("UsingDeclaration", {
+      kind: "Using", 
+      declarators,
+      await: awaits
+    });
+    this.trimsemi();
+    return use;
+	}
+
   // ----- Variable
 
   protected parseVariableDeclaration(): VariableDeclaration {
-		const kind = this.eat<"Const" | "Var" | "Let">().type;
-		this.trim();
+    const kind = this.eat<"Const" | "Var" | "Let">().type;
+    this.trim();
     const declarators = this.parseVarDeclarators(kind);
-		return this.new("VariableDeclaration", {kind, declarators});
-	}
+    return this.new("VariableDeclaration", {kind, declarators});
+  }
 
-  protected parseVarDeclarators(kind: "Const" | "Var" | "Let"): VariableDeclarator[] {
+  protected parseVarDeclarators(kind: "Const" | "Var" | "Let" | "Using"): VariableDeclarator[] {
     const declarators: VariableDeclarator[] = [];
     while(this.willContinue() && !this.isAny("Comma", "Semicolon")) {
       const id = this.parseAssignee();
@@ -526,7 +551,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
   // ----- For Loop
   
-  protected parseAnyForStatement(): AnyFor {
+  protected parseAnyForStatement(): AnyForStatement {
     this.eatTrim();
     const awaits = this.is("Await");
 
@@ -639,24 +664,21 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     return this.new("ForStatement", {init, test, update, body});
   }
 
-  // ----- While Loop
+  // ----- While Statement
   
   protected parseWhileStatement(): WhileStatement {
-    this.eat();
-    this.trim();
-    this.expect("OpenParen", (
-      "Expected parenthesis after while keyword"
-    ))
+    this.eatTrim();
+    this.expect("OpenParen", "Expected parenthesis after while keyword");
     this.trim();
     const test = this.parseExpression();
     this.trim();
-    this.expect("CloseParen", (
-      "Expected parenthesis after while condition"
-    ))
+    this.expect("CloseParen", "Expected parenthesis after while condition");
     this.trim();
     const body = this.parseConsequent();
     return this.new("WhileStatement", {test, body})
   }
+
+  // ----- Do While Statement
   
   protected parseDoWhileStatement(): DoWhileStatement {
     this.eat();
@@ -666,7 +688,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     this.expect("While", "Expected while after do");
     this.trim();
     const test = this.parseExpression();
-    return this.new("DoWhileStatement", {test, body})
+    return this.new("DoWhileStatement", {test, body});
   }
   
   // ----- If Statement
@@ -705,6 +727,20 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     this.trim();
     return if_stmt;
 	}
+
+  // ----- With Statement
+  
+  protected parseWithStatement(): WithStatement {
+    this.eatTrim();
+    this.expect("OpenParen", "Expected parenthesis after with keyword");
+    this.trim();
+    const namespace = this.parseExpression();
+    this.trim();
+    this.expect("CloseParen", "Expected parenthesis after with namespace");
+    this.trim();
+    const body = this.parseConsequent();
+    return this.new("WithStatement", {namespace, body});
+  }
 
   // ----- Try Statement
   
@@ -1437,15 +1473,11 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
   // ----- Complex
 
   protected parseObjectExpression(): ObjectExpression {
-    this.eat();
-    this.trim();
+    this.eatTrim();
     const props = this.parseExpressionProps();
-
-    const obj = this.new("ObjectExpression", {props})
+    const obj = this.new("ObjectExpression", {props});
     this.trim();
-    this.expect("CloseBracket", 
-      "Expected closing bracket to end Object literal."
-    )
+    this.expect("CloseBracket", "Expected closing bracket to end Object literal.");
     return obj;
   }
 
@@ -1459,19 +1491,35 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
       }
 
       else {
-        const key = this.parseAnyIdentifier(true);
-        this.trim();
-        
+        let shorthand = false;
         let value: Expression;
-        const not_shorthand = this.is("Colon");
+        let key: Expression
+        const computed = this.is("OpenSquare");
 
-        if (not_shorthand) {
-          this.eat();
+        if (computed) {
+          this.eatTrim();
+          key = this.parseExpression();
           this.trim();
+          this.expect("CloseSquare", "Expected close square to end indexed type.")
+        }
+        else if (this.is("String")) {
+          key = this.parseString();
+        }
+        else {
+          key = this.parseAnyIdentifier(true);
+        }
+
+        this.trim();
+        if (this.if("Colon")) {
+          this.trim();
+          shorthand = true;
           value = this.parseExpression();
           this.trim();
         }
         else {
+          if (key.type !== "Identifier" && key.type !== "PrivateIdentifier") {
+            throw "Expected colon after not id key";
+          }
           value = key;
         }
         
@@ -1480,15 +1528,13 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
           value,
           kind: "init",
           method: false,
-          shorthand: not_shorthand,
-          computed: false
+          shorthand,
+          computed
         }));
       }
 
-      if (this.type() === "Comma") {
-        this.eat()
-        this.trim();
-      }
+      if (this.isnt("Comma")) break;
+      this.eatTrim();
     }
     return props;
   }
@@ -1613,9 +1659,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
   // ===== TOOLS ===== 
 
   protected trim() {
-    while (this.willContinue() && this.isAny("Br", "Tab", "Space")) {
-      this.eat();
-    }
+    while (this.willContinue() && this.has("WhiteSpace")) this.eat();
   }
 
   protected trimsemi() {

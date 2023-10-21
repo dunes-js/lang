@@ -1,10 +1,6 @@
 
 
 
-
-export const n = new class {
-  of = 40;
-  if = 33
+const n = {
+  [2]: "jajaja"
 }
-
-n.of();

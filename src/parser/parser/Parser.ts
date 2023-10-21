@@ -101,7 +101,6 @@ export abstract class Parser<
 		}
 		return null;
 	}
-
 	protected is(type: TType<TokenType>): boolean {
 		return type === this.#tokens[0]!.type;
 	}

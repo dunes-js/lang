@@ -1,5 +1,5 @@
 import type { 
-    ASTOptions,
+  ASTOptions,
   AsyncTraveler, 
   ConvertOptions, 
   Node, 
@@ -13,13 +13,12 @@ export class AST<
   AnyNode extends Node<any>, 
   P extends ASTOptions
 > {
-	program: Program<AnyNode, P["programProps"]>
+	readonly program: (
+   & Program<AnyNode, P["programProps"]> 
+   & P["programProps"] 
+  );
 	constructor(public options?: ParseOptions<P>) {
-		this.program = new Program();
-
-    if (options?.program) for (const key in options.program) {
-      this.program.props[key] = options.program[key]!;
-    }
+		this.program = new Program(options?.program || {});
 	}
 
   travel(travel: Traveler<AnyNode>): void {

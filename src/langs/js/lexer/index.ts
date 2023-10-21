@@ -1,8 +1,8 @@
 import { lexer } from "../../../index.js";
-import type { TokenType } from "./types.js";
-export type { TokenType }
+import type { TokenTag, TokenType } from "./types.js";
+export type { TokenType, TokenTag }
 
-export class JSLexer extends lexer.Lexer<TokenType> {
+export class JSLexer extends lexer.Lexer<TokenType, TokenTag> {
 
 	protected override read() {
 
@@ -51,45 +51,48 @@ export class JSLexer extends lexer.Lexer<TokenType> {
 			}
 
 			const value = chars.map(({value}) => value).join("");
-
+      let word;
 			switch (value) {
-				case "let": return this.new("Let", ...chars);
-				case "var": return this.new("Var", ...chars);
-				case "switch": return this.new("Switch", ...chars);
-        case "try": return this.new("Try", ...chars);
-        case "catch": return this.new("Catch", ...chars);
-        case "finally": return this.new("Finally", ...chars);
-        case "case": return this.new("Case", ...chars);
-        case "break": return this.new("Break", ...chars);
-        case "continue": return this.new("Continue", ...chars);
-        case "const": return this.new("Const", ...chars);
-        case "for": return this.new("For", ...chars);
-				case "if": return this.new("If", ...chars);
-        case "of": return this.new("Of", ...chars);
-        case "in": return this.new("In", ...chars);
-				case "else": return this.new("Else", ...chars);
-        case "as": return this.new("As", ...chars);
+				case "let": word = this.new("Let", ...chars); break;
+				case "var": word = this.new("Var", ...chars); break;
+				case "switch": word = this.new("Switch", ...chars); break;
+        case "try": word = this.new("Try", ...chars); break;
+        case "catch": word = this.new("Catch", ...chars); break;
+        case "finally": word = this.new("Finally", ...chars); break;
+        case "case": word = this.new("Case", ...chars); break;
+        case "break": word = this.new("Break", ...chars); break;
+        case "continue": word = this.new("Continue", ...chars); break;
+        case "const": word = this.new("Const", ...chars); break;
+        case "for": word = this.new("For", ...chars); break;
+				case "if": word = this.new("If", ...chars); break;
+        case "of": word = this.new("Of", ...chars); break;
+        case "in": word = this.new("In", ...chars); break;
+				case "else": word = this.new("Else", ...chars); break;
+        case "as": word = this.new("As", ...chars); break;
+        case "do": word = this.new("Do", ...chars); break;
+        case "while": word = this.new("While", ...chars); break;
 
-				case "new": return this.new("New", ...chars);
-				case "void": return this.new("Void", ...chars);
-				case "async": return this.new("Async", ...chars);
-				case "return": return this.new("Return", ...chars);
-        case "throw": return this.new("Throw", ...chars);
-				case "instanceof": return this.new("InstanceOf", ...chars);
-				case "typeof": return this.new("TypeOf", ...chars);
-        case "await": return this.new("Await", ...chars);
+				case "new": word = this.new("New", ...chars); break;
+				case "void": word = this.new("Void", ...chars); break;
+				case "async": word = this.new("Async", ...chars); break;
+				case "return": word = this.new("Return", ...chars); break;
+        case "throw": word = this.new("Throw", ...chars); break;
+				case "instanceof": word = this.new("InstanceOf", ...chars); break;
+				case "typeof": word = this.new("TypeOf", ...chars); break;
+        case "await": word = this.new("Await", ...chars); break;
 				
-				case "from": return this.new("From", ...chars);
-        case "default": return this.new("Default", ...chars);
-        case "import": return this.new("Import", ...chars);
-        case "export": return this.new("Export", ...chars);
-        case "function": return this.new("Function", ...chars);
-				case "class": return this.new("Class", ...chars);
-				case "extends": return this.new("Extends", ...chars);
+				case "from": word = this.new("From", ...chars); break;
+        case "default": word = this.new("Default", ...chars); break;
+        case "import": word = this.new("Import", ...chars); break;
+        case "export": word = this.new("Export", ...chars); break;
+        case "function": word = this.new("Function", ...chars); break;
+				case "class": word = this.new("Class", ...chars); break;
+				case "extends": word = this.new("Extends", ...chars); break;
 				default: 
-					return this.new("Identifier", ...chars);
+					word = this.new("Identifier", ...chars);
 			}
-
+      word.setTag("Word");
+      return word;
 		}
 
 		if (this.match(/[0-9]/)) {
@@ -128,14 +131,21 @@ export class JSLexer extends lexer.Lexer<TokenType> {
 			return this.new("Slash", slash);
 		}
 
-		if (this.is("*")) {
-			const ast = this.eat();
-			if (this.is("="))
-				return this.new("AsteriskEquals", ast, this.eat());
-			if (this.is("/"))
-				return this.new("AsteriskSlash", ast, this.eat());
-			return this.new("Asterisk", ast);
+		if (this.is("?")) {
+			const mark = this.eat();
+			if (this.is("."))
+				return this.new("Optional", mark, this.eat());
+			return this.new("Question", mark);
 		}
+
+    if (this.is("*")) {
+      const ast = this.eat();
+      if (this.is("="))
+        return this.new("AsteriskEquals", ast, this.eat());
+      if (this.is("/"))
+        return this.new("AsteriskSlash", ast, this.eat());
+      return this.new("Asterisk", ast);
+    }
 
 		if (this.is("+")) {
 			const plus = this.eat();
@@ -218,7 +228,6 @@ export class JSLexer extends lexer.Lexer<TokenType> {
       case '\\': return this.new("BackSlash", this.eat());
 
 			case "!": return this.new("Exclamation", this.eat());
-      case "?": return this.new("Question", this.eat());
       case "#": return this.new("Hash", this.eat());
 
 			case ";": return this.new("Semicolon", this.eat());

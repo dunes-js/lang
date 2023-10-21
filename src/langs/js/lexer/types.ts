@@ -12,6 +12,8 @@ export type TokenType = lexer.TType<(
   | "Import"
   | "Export"
   | "From"
+  | "Do"
+  | "While"
   | "Default"
 	| "Class"
   | "Finally"
@@ -30,6 +32,7 @@ export type TokenType = lexer.TType<(
 	| "For"
   | "Throw"
   | "Return"
+  | "Optional"
 	| "Void"
 	| "New"
   | "Await"
@@ -102,3 +105,7 @@ export type TokenType = lexer.TType<(
 	| "OpenSquare" 
 	| "CloseSquare"
 )>
+
+export type TokenTag = (
+  | "Word"
+)

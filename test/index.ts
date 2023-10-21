@@ -14,27 +14,10 @@ try {
   console.log("Loaded in", loadTime + "ms");
   console.log("Parsed in", Date.now() - parseStart + "ms");
 
-  // result.travel(tr => ({
-
-  //   Identifier(path) {
-
-  //     const fun = tr.read("function() {}", "FunctionExpression");
-  //     path.replaceWith(fun)
-  //   },
-
-
-
-  // }))
-
-
-  // const code = await result.convertAsync();
-
-
 }
 catch(err) {
 	console.log("ERROR")
-	console.log(err);
+	console.log(err, js(jsParser));
 }
-
 
 process.exit(0);

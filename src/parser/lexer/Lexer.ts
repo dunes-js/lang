@@ -2,13 +2,16 @@ import { Char, CharList } from "./Char.js";
 import { Token, TokenList } from "./Token.js";
 import type { TType } from "./types.js";
 
-export abstract class Lexer<T extends string> {
+export abstract class Lexer<
+  Type extends string,
+  Tag extends string = string
+> {
 
 	#chars!: CharList
 
-	convert(source: string): TokenList<T> {
+	convert(source: string): TokenList<Type, Tag> {
 		this.#chars = new CharList(source);
-		const tokens = new TokenList<T>();
+		const tokens = new TokenList<Type, Tag>();
 		while (this.#chars.length) {
 			const token = this.read();
 			if (token)
@@ -18,9 +21,9 @@ export abstract class Lexer<T extends string> {
 		return tokens;
 	}
 
-	protected abstract read(): Token<TType<T>> | null;
+	protected abstract read(): Token<TType<Type>, Tag> | null;
 
-	protected new(type: TType<T>, ...chars: Char[]): Token<TType<T>> {
+	protected new(type: TType<Type>, ...chars: Char[]): Token<TType<Type>, Tag> {
 		return new Token(type, ...chars)
 	}
 

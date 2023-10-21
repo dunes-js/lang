@@ -1,11 +1,23 @@
+import type { Recommend } from "@dunes/tools";
 import type { Char } from "./Char.js";
 import type { TType } from "./types.js";
 
-export class Token<T extends string> {
+export class Token<
+  Type extends string, 
+  Tag extends string = string
+> {
 	#value: TokenValue
-	constructor(public type: T, ...chars: Char[]) {
+  public type: Type
+  readonly #tags: Tag[] = [];
+  constructor(type: Type, ...chars: Char[]) 
+  {
+    this.type = type;
 		this.#value = new TokenValue(chars);
 	}
+
+  setTag(tag: Tag): void {
+    this.#tags.push(tag);
+  }
 
 	get value(): string {
 		return String(this.#value);
@@ -18,6 +30,10 @@ export class Token<T extends string> {
 	last(): Char {
 		return this.#value.chars[this.#value.chars.length - 1]!
 	}
+
+  has(tag: Recommend<Tag>): boolean {
+    return this.#tags.includes(tag as Tag);
+  }
 }
 
 /*->
@@ -51,6 +67,7 @@ class TokenValue extends String {
 
 }
 
-export class TokenList<T extends string> extends Array<Token<TType<T>>> {
-
-}
+export class TokenList<
+  Type extends string, 
+  Tag extends string = string
+> extends Array<Token<TType<Type>, Tag>> {}

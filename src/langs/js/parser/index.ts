@@ -1,31 +1,70 @@
-import { parser } from "../../../index.js";
-import { JSLexer, type TokenType } from "../lexer/index.js";
+import { lexer, parser } from "../../../index.js";
+import { JSLexer, type TokenTag, type TokenType } from "../lexer/index.js";
 import type { 
-    AnyDeclaration,
-    AnyExportDeclaration,
-  AnyFor, AnyImportSpecifier, AnyNode, ArrayExpression, ArrayPattern,
-  ArrowFunctionExpression, Assignee, BlockComment, BlockStatement,
-  CallExpression, ClassBody, ClassDeclaration, ClassMethod,
-	ClassProperty, ClassProps, Consequent, DocComment, ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclaration, ExportSpecifier, Expression, 
-	ExpressionStatement, ForInStatement, ForOfStatement, ForStatement, 
-	FunctionDeclaration, FunctionExpression, Identifier, IfStatement, 
-	ImportDeclaration, LineComment, NodeType, NumericLiteral, 
-	ObjectExpression, ObjectPattern, Property, RegExpLiteral, 
-	RestElement, SourceType, SpreadElement, StringLiteral, SwitchCase, 
-	SwitchStatement, TemplateElement, TemplateStringLiteral, 
-	TryStatement, VariableDeclaration, VariableDeclarator
+  AnyDeclaration,
+  AnyExportDeclaration,
+  AnyFor, 
+  AnyIdentifier, 
+  AnyImportSpecifier, 
+  AnyNode, 
+  ArrayExpression, 
+  ArrayPattern,
+  ArrowFunctionExpression, 
+  Assignee, 
+  BlockComment, 
+  BlockStatement,
+  CallExpression, 
+  ClassBody, 
+  ClassDeclaration, 
+  ClassMethod,
+  ClassProperty, 
+  ClassProp, 
+  Consequent, 
+  DocComment, 
+  DoWhileStatement, 
+  ExportAllDeclaration, 
+  ExportDefaultDeclaration, 
+  ExportNamedDeclaration, 
+  ExportSpecifier, 
+  Expression, 
+  ExpressionStatement, 
+  ForInStatement, 
+  ForOfStatement, 
+  ForStatement, 
+  FunctionDeclaration, 
+  FunctionExpression, 
+  Identifier, 
+  IfStatement, 
+  ImportDeclaration, 
+  LineComment, 
+  NodeType, 
+  NumericLiteral, 
+  ObjectExpression, 
+  ObjectPattern, 
+  PrivateIdentifier, 
+  PropExpression,
+  PropPattern, 
+  RegExpLiteral, 
+  RestElement, 
+  SourceType, 
+  SpreadElement, 
+  StringLiteral, 
+  SwitchCase, 
+  SwitchStatement, 
+  TemplateElement, 
+  TemplateStringLiteral, 
+  TryStatement, 
+  VariableDeclaration, 
+  VariableDeclarator, 
+  WhileStatement,
+  ClassExpression, 
 } from "./types.js";
-import type { Token } from "../../../parser/lexer/Token.js";
 
 /**
  * @TODO
- * - export
+ * - optional
  * - with
- * - label
- * - break, continue
- * - Cannot use keyword as member expression
  * */
-
 
 export class JSParser extends parser.Parser<TokenType, AnyNode, {
   ast: {
@@ -33,33 +72,17 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
       sourceType: SourceType
     }
   }
-}> 
+}, TokenTag> 
 {
 
 	constructor() {
 		super(new JSLexer());
 	}
 
-  protected trim() {
-		while (this.willContinue() && this.isAny("Br", "Tab", "Space")) {
-			this.eat();
-		}
-	}
-
-  protected trimsemi() {
-    this.trim();
-    while (this.willContinue() && this.is("Semicolon")) {
-      this.eatTrim();
+  protected override onLoad() {
+    if (!this.hasProperty("sourceType")) {
+      this.setProperty("sourceType", "cjs");
     }
-  }
-
-  protected eatTrim() {
-    this.eat();
-    this.trim()
-  }
-
-  protected cook(raw: string): string {
-    return raw === "\\"? raw : raw.replace(/\\/g, "");
   }
 
 	protected override parse(): Expression {
@@ -111,7 +134,17 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
       }
 
       case "For": {
-        stmt = this.parseAnyFor()
+        stmt = this.parseAnyForStatement()
+        break;
+      }
+
+      case "Do": {
+        stmt = this.parseDoWhileStatement()
+        break;
+      }
+
+      case "While": {
+        stmt = this.parseWhileStatement()
         break;
       }
 
@@ -152,157 +185,140 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     return stmt;
 	}
 
-  protected parseDeclaration(): AnyDeclaration {
+  // ===== GENERAL =====
 
-    switch(this.type()) {
-      case "Var":
-      case "Let":
-      case "Const": {
-        return this.parseVariableDeclaration()
-      }
+  // ----- Comment
 
-      case "Class": {
-        return this.parseClassDeclaration();
-      }
-
-      case "Function": {
-        return this.parseFunctionDeclaration(false);
-      }
-
-      case "Async": {
-        this.eat();
-        this.trim()
-        if (!this.is("Function")) {
-          throw "Expected function keyword after async."
-        }
-
-        return this.parseFunctionDeclaration(true);
-      }
-
-      default: {
-        throw `Unexpected type ${this.type()}`
-      }
+  protected parseBlockComment(): BlockComment {
+    this.eat();
+    let content = "";
+    while (this.willContinue() && this.type() !== "AsteriskSlash") {
+      content += this.eat().value;
     }
+    this.expect("AsteriskSlash", "Expected asterisk slash to end Block comment.")
+    this.trim();
+    return this.new("BlockComment", {content});
+  }
 
+  protected parseDocComment(): DocComment {
+    this.eat();
+    let content = "";
+    while (this.willContinue() && this.type() !== "AsteriskSlash") {
+      content += this.eat().value;
+    }
+    this.expect("AsteriskSlash", "Expected asterisk slash to end Doc comment.")
+    this.trim();
+    return this.new("DocComment", {content});
+  }
+
+  protected parseLineComment(): LineComment {
+    this.eat();
+    let content = "";
+    while (this.willContinue() && this.type() !== "Br") {
+      content += this.eat().value;
+    }
+    this.expect("Br", "Expected break to end line comment.")
+    this.trim();
+    return this.new("LineComment", {content});
+  }
+
+  // ----- Body
+
+  protected parseBlock(): BlockStatement {
+    this.eatTrim();
+    const body: Expression[] = [];
+    while (this.willContinue() && this.isnt("CloseBracket")) {
+      body.push(this.parse());
+      this.trim();
+    }
+    this.expect("CloseBracket", "Expected bracket to end block");
+    this.trimsemi();
+    return this.new("BlockStatement", {body: body});
+  }
+
+  protected parseConsequent(): Consequent {
+    if (this.is("OpenBracket")) {
+      return this.parseBlock();
+    }
+    if (this.is("Semicolon")) {
+      this.eat();
+      return this.new("EmptyExpression", {});
+    }
+    return this.parseExpressionStatement();
   }
 
   protected parseExpressionStatement(): ExpressionStatement {
-    let stmt = this.new("ExpressionStatement", {
-      expression: this.parseExpression()
-    })
+    let stmt = this.new("ExpressionStatement", {expression: this.parseExpression()});
     this.trimsemi();
     return stmt;
   }
 
-  protected parseBlockComment(): BlockComment {
-		this.eat();
-		let content = "";
-		while (this.willContinue() && this.type() !== "AsteriskSlash") {
-			content += this.eat().value;
-		}
-		
-		this.expect("AsteriskSlash", "Expected asterisk slash to end Block comment.")
-		this.trim();
-		return this.new("BlockComment", {
-			content,
-		});
-	}
+  // ===== DECLARATION =====
 
-  protected parseDocComment(): DocComment {
-		this.eat();
-		let content = "";
-		while (this.willContinue() && this.type() !== "AsteriskSlash") {
-			content += this.eat().value;
-		}
-		
-		this.expect("AsteriskSlash", "Expected asterisk slash to end Doc comment.")
-		this.trim();
-		return this.new("DocComment", {
-			content,
-		});
-	}
+  protected parseDeclaration(): AnyDeclaration {
+    switch(this.type()) {
+      case "Var":
+      case "Let":
+      case "Const": return this.parseVariableDeclaration()
+      case "Class": return this.parseClassDeclaration();
+      case "Function": return this.parseFunctionDeclaration(false);
+      case "Async": {
+        this.eat();
+        this.trim()
+        if (!this.is("Function")) throw "Expected function keyword after async.";
+        return this.parseFunctionDeclaration(true);
+      }
+      default: throw `Unexpected type ${this.type()}`;
+    }
+  }
 
-  protected parseLineComment(): LineComment {
-		this.eat();
-		let content = "";
-		while (this.willContinue() && this.type() !== "Br") {
-			content += this.eat().value;
-		}
-		
-		this.expect("Br", "Expected break to end line comment.")
-		this.trim();
-		return this.new("LineComment", {
-			content,
-		});
-	}
+  // ----- Variable
 
   protected parseVariableDeclaration(): VariableDeclaration {
 		const kind = this.eat<"Const" | "Var" | "Let">().type;
 		this.trim();
     const declarators = this.parseVarDeclarators(kind);
-		
-		return this.new("VariableDeclaration", {
-			kind, 
-      declarators
-		})
+		return this.new("VariableDeclaration", {kind, declarators});
 	}
 
   protected parseVarDeclarators(kind: "Const" | "Var" | "Let"): VariableDeclarator[] {
-
     const declarators: VariableDeclarator[] = [];
-
     while(this.willContinue() && !this.isAny("Comma", "Semicolon")) {
       const id = this.parseAssignee();
       this.trim();
       if (this.is("Semicolon")) {
-        declarators.push(this.new("VariableDeclarator", {
-          id,
-          init: null, 
-        }))
+        declarators.push(this.new("VariableDeclarator", {id, init: null}));
         break;
       }
-      this.expect("Equals", (
-        `Expected Equals after identifier in ${kind} declaration`
-      ))
+      this.expect("Equals", `Expected Equals after identifier in ${kind} declaration`);
       this.trim();
-      declarators.push(this.new("VariableDeclarator", {
-        id, 
-        init: this.parseExpression()
-      }))
+      declarators.push(this.new("VariableDeclarator", {id, init: this.parseExpression()}));
       this.trim();
-
-      if (this.is("Comma")) {
-        this.eat();
-        this.trim();
-      }
+      if (this.is("Comma")) this.eatTrim();
       else break;
     }
-
     return declarators;
   }
 
+  // ----- Import
+
   protected parseImportDeclaration(): ImportDeclaration {
-    this.eat()
-    this.trim();
+    this.eatTrim();
     const specifiers = this.parseImportSpecifiers();
     this.trim();
     this.expect("From", "Expected from after import specifiers.")
     this.trim();
-    if (!this.is("String")) {
-      throw `Expected string after for`;
-    }
+    if (!this.is("String")) throw `Expected string after for`;
     const source = this.parseString();
     return this.new("ImportDeclaration", {specifiers, source});
   }
 
   protected parseImportSpecifiers(): AnyImportSpecifier[] {
-
     const specifiers: AnyImportSpecifier[] = [];
     while(this.willContinue() && !this.isAny("From", "Comma")) {
-
       if (this.is("Identifier")) {
         specifiers.push(this.new("ImportDefaultSpecifier", {
-          local: this.parseIdentifier()
+          local: this.parseAnyIdentifier()
         }))
         this.trim();
       }
@@ -312,34 +328,28 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
         this.expect("As", "Expected as for namespace specifier");
         this.trim();
         specifiers.push(this.new("ImportNamespaceSpecifier", {
-          local: this.parseIdentifier()
+          local: this.parseAnyIdentifier()
         }));
         this.trim();
       }
       else {
         this.expect("OpenBracket", "Expected bracket to list imports");
         this.trim();
-
         specs:
         while (this.willContinue() && this.isnt("CloseBracket")) {
-
-          const imported = this.parseIdentifier();
+          const imported = this.parseAnyIdentifier();
           let local = imported;
           this.trim();
           if (this.is("As")) {
             this.eat();
             this.trim()
-            local = this.parseIdentifier();
+            local = this.parseAnyIdentifier();
             this.trim()
           }
-
           specifiers.push(this.new("ImportSpecifier", {local, imported}))
-
           if (this.isnt("Comma")) break specs;
-          this.eat();
-          this.trim();
+          this.eatTrim();
         }
-
         this.trim();
         this.expect("CloseBracket", "Expected bracket to end import list");
         this.trim();
@@ -352,9 +362,10 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     return specifiers;
   }
 
+  // ----- Export
+
   protected parseExportDeclaration(): AnyExportDeclaration {
     this.eatTrim();
-
     if (this.is("Default")) {
       return this.parseExportDefaultDeclaration();
     }
@@ -375,9 +386,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
   protected parseExportDefaultDeclaration(): ExportDefaultDeclaration {
     this.eatTrim();
-    return this.new("ExportDefaultDeclaration", {
-      declaration: this.parseDeclaration()
-    })
+    return this.new("ExportDefaultDeclaration", {declaration: this.parseDeclaration()});
   }
 
   protected parseExportAllDeclaration(): ExportAllDeclaration {
@@ -392,40 +401,29 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
       throw `Expected From after identifier in export all`;
     }
     this.trim();
-    if (!this.is("String")) {
-      throw `Expected string after from in export all`;
-    }
+    if (!this.is("String")) throw `Expected string after from in export all`;
     const source = this.parseString();
-    return this.new("ExportAllDeclaration", {
-      exported, source
-    })
+    return this.new("ExportAllDeclaration", {exported, source});
   }
 
   protected parseExportNamedDeclaration(): ExportNamedDeclaration {
-
     const specifiers: ExportSpecifier[] = [];
-     while (this.willContinue() && this.isnt("CloseBracket")) {
-
-      const exported = this.parseIdentifier();
+    while (this.willContinue() && this.isnt("CloseBracket")) {
+      const exported = this.parseAnyIdentifier();
       let local = exported;
       this.trim();
       if (this.is("As")) {
         this.eat();
         this.trim()
-        local = this.parseIdentifier();
+        local = this.parseAnyIdentifier();
         this.trim()
       }
-
       specifiers.push(this.new("ExportSpecifier", {local, exported}))
-
       if (this.isnt("Comma")) break;
       this.eat();
       this.trim();
     }
-
     let source: StringLiteral | null = null;
-    
-
     if (this.if("From")) {
       this.trim();
       if (this.isnt("String")) {
@@ -435,68 +433,32 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     }
 
     return this.new("ExportNamedDeclaration", {
-      specifiers,
-      source,
-      declaration: null
-    })
-
+      specifiers, source, declaration: null
+    });
   }
 
+  // ----- Function
+
   protected parseFunctionDeclaration(async: boolean): FunctionDeclaration {
-		this.eat();
-		this.trim();
+		this.eatTrim();
 		const generator = !!this.if("Asterisk");
-		if (generator) {
-			this.trim();
-		}
-		const id = this.parseIdentifier();
+		if (generator) this.trim();
+		const id = this.parseAnyIdentifier();
 		this.trim();
-		this.expect("OpenParen", (
-			"Expected parenthesis after function identifier"
-		))
+		this.expect("OpenParen", "Expected parenthesis after function identifier");
 		this.trim();
-
 		const params = this.parseParameters();
-
-		if (!this.is("OpenBracket")) throw (
-			"Expected bracket to open function body"
-		)
 		this.trim();
 		const body = this.parseBlock();
 		this.trim();
-
-		return this.new("FunctionDeclaration", {
-			async, 
-			generator,
-			id, 
-			params, 
-			body, 
-		})
+		return this.new("FunctionDeclaration", {async, generator, id, params, body});
 	}
 
-  protected parseParameters(): Assignee[] {
-		const params: Assignee[] = [];
-
-		while(this.willContinue() && this.isnt("CloseParen")) {
-			params.push(this.parseAssignmentPattern())
-      this.trim();
-			
-      if (this.isnt("Comma")) break;
-      this.eat()
-			this.trim();
-		}
-
-		this.expect("CloseParen", (
-			"Expected parenthesis to close function params"
-		))
-		this.trim();
-		return params;
-	}
+  // ----- Class
 
   protected parseClassDeclaration(): ClassDeclaration {
-		this.eat();
-		this.trim();
-		const id = this.parseIdentifier();
+		this.eatTrim();
+		const id = this.parseAnyIdentifier();
 		this.trim();
 		let extend: Expression | null = null;
 		if (this.is("Extends")) {
@@ -505,69 +467,43 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 			extend = this.parseExpression();
 			this.trim();
 		}
-
-		this.expect("OpenBracket", (
-			"Expected bracket to open class body"
-		))
+		this.expect("OpenBracket", "Expected bracket to open class body");
 		this.trim();
 		const body = this.parseClassBody();
 		this.trim();
-
-		return this.new("ClassDeclaration", {
-			id, body, extend
-		})
+		return this.new("ClassDeclaration", {id, body, extend});
 	}
 
   protected parseClassBody(): ClassBody {
-		const props: ClassProps[] = [];
+    this.trim();
+		const props: ClassProp[] = [];
 		while(this.willContinue() && this.isnt("CloseBracket")) {
-			const priv = !!this.if("Hash");
+			const id = this.parseAnyIdentifier(true);
 			this.trim();
-			if (this.isnt("Identifier")) {
-				throw "Expected identifier";
-			}
-			const id = this.parseIdentifier();
-			this.trim();
-			if (this.is("OpenParen")) {
-				props.push(this.parseClassMethod(id, priv))
-			}
-			else {
-				props.push(this.parseClassProperty(id, priv))
-			}
+			if (this.is("OpenParen"))
+				props.push(this.parseClassMethod(id));
+			else
+				props.push(this.parseClassProperty(id));
 			this.trim();
 		}
-		this.expect("CloseBracket", (
-			"Expected bracket to close class body"
-		))
+		this.expect("CloseBracket", "Expected bracket to close class body");
 		this.trim();
-		return this.new("ClassBody", {
-			props
-		})
+		return this.new("ClassBody", {props});
 	}
 	
-  protected parseClassMethod(id: Identifier, priv: boolean): ClassMethod {
-		this.eat();
-		this.trim();
-
+  protected parseClassMethod(id: AnyIdentifier): ClassMethod {
+		this.eatTrim();
 		const params = this.parseParameters();
 		this.trim();
-
 		if (!this.is("OpenBracket")) throw (
 			"Expected bracket to open class method body"
 		)
 		this.trim();
 		const body = this.parseBlock();
-		this.trim();
-
-		return this.new("ClassMethod", {
-			id,
-			private: priv,
-			params,
-			body
-		})
+		return this.new("ClassMethod", {id, params, body})
 	}
 	
-  protected parseClassProperty(id: Identifier, priv: boolean): ClassProperty {
+  protected parseClassProperty(id: AnyIdentifier): ClassProperty {
 		
 		let init: Expression | null = null;
 		if (this.is("Equals")) {
@@ -578,17 +514,19 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 			this.trim();
 		}
 
-		this.expect("Semicolon", "Expected semicolon to end property declaration");
-		this.trim();
+		this.trimsemi();
 
 		return this.new("ClassProperty", {
 			id,
-			private: priv,
 			init
 		})
 	}
-	
-  protected parseAnyFor(): AnyFor {
+
+  // ===== STATEMENT =====
+
+  // ----- For Loop
+  
+  protected parseAnyForStatement(): AnyFor {
     this.eatTrim();
     const awaits = this.is("Await");
 
@@ -700,6 +638,38 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
   
     return this.new("ForStatement", {init, test, update, body});
   }
+
+  // ----- While Loop
+  
+  protected parseWhileStatement(): WhileStatement {
+    this.eat();
+    this.trim();
+    this.expect("OpenParen", (
+      "Expected parenthesis after while keyword"
+    ))
+    this.trim();
+    const test = this.parseExpression();
+    this.trim();
+    this.expect("CloseParen", (
+      "Expected parenthesis after while condition"
+    ))
+    this.trim();
+    const body = this.parseConsequent();
+    return this.new("WhileStatement", {test, body})
+  }
+  
+  protected parseDoWhileStatement(): DoWhileStatement {
+    this.eat();
+    this.trim();
+    const body = this.parseBlock();
+    this.trim();
+    this.expect("While", "Expected while after do");
+    this.trim();
+    const test = this.parseExpression();
+    return this.new("DoWhileStatement", {test, body})
+  }
+  
+  // ----- If Statement
   
   protected parseIfStatement(): IfStatement {
 		this.eat();
@@ -735,6 +705,8 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     this.trim();
     return if_stmt;
 	}
+
+  // ----- Try Statement
   
   protected parseTryStatement(): TryStatement {
     this.eat();
@@ -745,7 +717,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
       this.eatTrim();
       this.expect("OpenParen", "Expected open parenthesis after catch");
       this.trim();
-      const param = this.parseIdentifier();
+      const param = this.parseAnyIdentifier();
       this.trim();
       this.expect("CloseParen", "Expected close parenthesis after catch");
       this.trim();
@@ -766,6 +738,8 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     return this.new("TryStatement", {block, handler, finalizer});
   }
   
+  // ----- Switch Statement
+
   protected parseSwitchStatement(): SwitchStatement {
     this.eat();
     this.trim();
@@ -824,56 +798,51 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     })
   }
 
-  protected parseConsequent(): Consequent {
-    if (this.is("OpenBracket")) {
-      return this.parseBlock();
-    }
-    if (this.is("Semicolon")) {
-      this.eat();
-      return this.new("EmptyExpression", {});
-    }
-    return this.parseExpressionStatement();
-  }
-
-  protected parseBlock(): BlockStatement {
-		this.eat();
-		this.trim();
-
-		const body: Expression[] = [];
-		while (this.willContinue() && this.isnt("CloseBracket")) {
-			body.push(this.parse());
-			this.trim();
-		}
-
-		this.expect("CloseBracket", "Expected bracket to end block");
-		this.trimsemi();
-		return this.new("BlockStatement", {body: body})
-	}
+  // ===== EXPRESSION =====
 
   protected parseExpression(): Expression {
 		return this.parseAssignment();
 	}
 
   protected parseAssignment(): Expression {
-		const assigne = this.parseAdditive();
-		this.trim();
+    const assigne = this.parseConditional();
+    this.trim();
 
-		if (this.willContinue() && this.isAny(
-			"Equals", "PlusEquals", "DashEquals",
-			"PercentEquals", "SlashEquals", "AsteriskEquals"
-		)) {
-			const operator = this.eat().type;
-			this.trim();
-			const value = this.parseExpression();
-			this.trim();
+    if (this.willContinue() && this.isAny(
+      "Equals", "PlusEquals", "DashEquals",
+      "PercentEquals", "SlashEquals", "AsteriskEquals"
+    )) {
+      const operator = this.eat().type;
+      this.trim();
+      const value = this.parseExpression();
+      this.trim();
 
-			return this.new("AssignmentExpression", {
-				assigne, operator, value
-			})
-		}
+      return this.new("AssignmentExpression", {
+        assigne, operator, value
+      })
+    }
 
-		return assigne;
-	}
+    return assigne;
+  }
+
+  // ----- Conditional
+
+  protected parseConditional(): Expression {
+    const test = this.parseAdditive();
+    this.trim();
+    if (this.willContinue() && this.is("Question")) {
+      this.eatTrim();
+      const consequent = this.parseExpression();
+      this.trim();
+      this.expect("Colon", "Expected colon to finalize ternary expression");
+      this.trim();
+      const alternate = this.parseExpression();
+      return this.new("ConditionalExpression", {test, consequent, alternate});
+    }
+    return test;
+  }
+
+  // ----- Binary
 
   protected parseAdditive(): Expression {
 
@@ -924,7 +893,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
       "TripleEquals",
       "MoreThanEqual", "MoreThan",
       "LessThanEqual", "LessThan",
-      "InstanceOf",
+      "InstanceOf", "In"
     )) {
       const operator = this.eat().type;
       this.trim();
@@ -939,11 +908,13 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     return left;
   }
 
+  // ----- Member, Call
+
   protected parseMemberCall(): Expression {
-		let member: Expression = this.parseMember();
+		let member: Expression = this.parseMember(null, false);
 		this.trim();
 		if (this.is("OpenParen")) {
-			member = this.parseCall(member);
+			member = this.parseCall(member, false);
 		}
     if (this.is("BackQuote")) {
       member = this.new("TemplateStringExpression", {
@@ -951,38 +922,42 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
         quasi: this.parseTemplateString()
       });
     }
+    if (this.is("Period")) {
+      member = this.parseMember(member, false);
+    }
 		return member;
 	}
 
-  protected parseMember(): Expression {
-		let object = this.parsePrimary();
+  protected parseMember(parent: Expression | null, optional: boolean): Expression {
+		let object = parent || this.parsePrimary();
 		this.trim();
 		while (this.willContinue() && this.isAny("Period", "OpenSquare")) {
-
 			const computed = this.is("OpenSquare");
-			this.eat();
+			this.eatTrim();
+			let property;
+      if (computed) {
+        property = this.parseExpression();
+      }
+      else property = this.parseAnyIdentifier(true);
 			this.trim();
-			const property = this.parseExpression();
-			this.trim();
-
 			if (computed) {
 				this.expect("CloseSquare", (
 					"Expected closing square bracket in member expression"
 				))
 				this.trim();
 			}
-
 			object = this.new("MemberExpression", {
 				object,
 				computed,
 				property,
+        optional,
 			})
 
 		}
 		return object;
 	}
 
-  protected parseCall(caller: Expression): CallExpression {
+  protected parseCall(caller: Expression, optional: boolean): CallExpression {
 		this.eat();
 		this.trim();
 		const args: Expression[] = [];
@@ -1001,71 +976,20 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 		this.trim();
 		let callExpr = this.new("CallExpression", {
 			caller,
-			args
+			args,
+      optional
 		})
 		if (this.is("OpenParen")) {
-			callExpr = this.parseCall(callExpr);
+			callExpr = this.parseCall(callExpr, optional);
 			this.trim();
 		}
 		return callExpr;
 	}
 
-  protected parseAssignee(): Assignee {
-
-    switch(this.type()) {
-
-      case "OpenBracket": {
-        return this.parseObjectPattern();
-      }
-
-      case "OpenSquare": {
-        return this.parseArrayPattern();
-      }
-
-      case "Identifier": {
-        return this.parseIdentifier();
-      }
-
-      default: throw (
-        `Unexpected assigne of type ${this.type()}`
-      )
-    }
-  }
-
-  protected parseAssignmentPattern(): Assignee {
-    
-    let left;
-    if (this.is("Spread")) {
-      this.eatTrim();
-      left = this.parseRestElement();
-    }
-    else left = this.parseAssignee();
-
-    this.trim();
-    if (this.willContinue() && this.is("Equals")) {
-      this.eat().type;
-      this.trim();
-      const right = this.parseExpression();
-      this.trim();
-
-      return this.new("AssignmentPattern", {
-        left, 
-        right
-      })
-    }
-    return left;
-  }
-
-  protected parseArgument(): Expression {
-    if (this.is("Spread")) {
-      this.eatTrim();
-      return this.parseSpreadElement();
-    }
-    return this.parseExpression();
-  }
+  // ----- Primary Expression
 
   protected parsePrimary(): Expression {
-		switch(this.type()) {
+    switch(this.type()) {
       case "Async": {
         this.eat();
         this.trim()
@@ -1083,6 +1007,10 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
         return this.parseFunctionExpression(false);
       }
 
+      case "Class": {
+        return this.parseClassExpression();
+      }
+
       case "DoubleSlash": {
         return this.parseLineComment();
       }
@@ -1095,25 +1023,48 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
         return this.parseTemplateString();
       }
 
-			case "New": {
-				return this.parseKeywordExpression("NewExpression")
-			}
-
-      case "Await": {
-        return this.parseKeywordExpression("AwaitExpression")
+      case "New": {
+        this.eatTrim();
+        return this.new("NewExpression", {caller: this.parseExpression()});
       }
 
-			case "OpenBracket": {
+      case "Await": {
+        this.eatTrim();
+        return this.new("AwaitExpression", {node: this.parseExpression()});
+      }
+
+      case "OpenBracket": {
         return this.parseObjectExpression();
-			}
+      }
 
-			case "OpenSquare": {
+      case "OpenSquare": {
         return this.parseArrayExpression();
-			}
+      }
 
-			case "OpenParen": {
+      case "OpenParen": {
+        const arrow = this.lookAhead((tokens) => {
+          let depth = 0;
 
-        if (this.afterGroup("Arrow")) {
+          while (tokens.length) {
+            if (tokens[0]!.type === "OpenParen") {
+              depth++;
+            }
+            else if (tokens[0]!.type === "CloseParen") {
+              tokens.shift();
+              if (depth === 1) {
+                while (tokens.length && ["Br", "Tab", "Space"].includes(tokens[0]!.type))  {
+                  tokens.shift();
+                }
+                return (tokens[0] as lexer.Token<TokenType>)!.type === "Arrow";
+              }
+              else depth--;
+            }
+            tokens.shift();
+          }
+
+          return false;
+        })
+        if (arrow) {
           return this.parseArrowFunctionExpression(false);
         }
 
@@ -1143,18 +1094,37 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
           "Expected closing parenthesis to end group expression."
         )
         return this.new("SequenceExpression", {nodes})
-			}
+      }
 
-			case "Slash": {
-				return this.parseRegExpLiteral();
-			}
+      case "Slash": {
+        return this.parseRegExpLiteral();
+      }
 
       case "Number": {
         return this.parseNumericLiteral();
       }
 
-			case "Identifier": {
-				const argument = this.parseIdentifier();
+      case "Break": {
+        this.eatTrim();
+        let label: AnyIdentifier | null = null;
+        if (this.isAny("Hash", "Identifier")) {
+          label = this.parseIdentifier();
+        }
+        return this.new("BreakStatement", {label});
+      }
+
+      case "Continue": {
+        this.eatTrim();
+        let label: AnyIdentifier | null = null;
+        if (this.isAny("Hash", "Identifier")) {
+          label = this.parseIdentifier();
+        }
+        return this.new("ContinueStatement", {label});
+      }
+
+      case "Hash":
+      case "Identifier": {
+        const argument = this.parseAnyIdentifier();
         this.trim();
         if (this.isAny("DoublePlus", "DoubleDash")) {
           const operator = this.eat().type;
@@ -1164,8 +1134,14 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
             prefix: false
           })
         }
+        if (this.if("Colon")) {
+          this.trim();
+          return this.new("LabeledStatement", {
+            body: this.parse()
+          })
+        }
         return argument;
-			}
+      }
 
       case "Plus": 
       case "Exclamation": 
@@ -1186,7 +1162,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
       case "DoubleDash": {
         const operator = this.eat().type;
         this.trim();
-        const argument = this.parseIdentifier();
+        const argument = this.parseAnyIdentifier();
         return this.new("UpdateExpression", {
           argument,
           operator,
@@ -1194,36 +1170,204 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
         })
       }
 
-			default: {
-				throw "Primary expression";
-			}
-		}
-	}
+      default: {
+        throw "Expected expression";
+      }
+    }
+  }
 
-  protected afterGroup(tokenType: TokenType) {
-    return this.lookAhead((tokens) => {
-      let depth = 0;
+  // ----- Assignment
 
-      while (tokens.length) {
-        if (tokens[0]!.type === "OpenParen") {
-          depth++;
-        }
-        else if (tokens[0]!.type === "CloseParen") {
-          tokens.shift();
-          if (depth === 1) {
-            while (tokens.length && ["Br", "Tab", "Space"].includes(tokens[0]!.type))  {
-              tokens.shift();
-            }
-            return (tokens[0] as Token<TokenType>)!.type === tokenType;
-          }
-          else depth--;
-        }
-        tokens.shift();
+  protected parseAssignee(): Assignee {
+
+    switch(this.type()) {
+
+      case "OpenBracket": {
+        return this.parseObjectPattern();
       }
 
-      return false;
-    })
+      case "OpenSquare": {
+        return this.parseArrayPattern();
+      }
+
+      case "Identifier": {
+        return this.parseAnyIdentifier();
+      }
+
+      default: throw (
+        `Unexpected assigne of type ${this.type()}`
+      )
+    }
   }
+
+  protected parseRestPattern(): Assignee {
+    
+    if (this.is("Spread")) {
+      this.eatTrim();
+      return this.parseRestElement();
+    }
+    return this.parseAssignmentPattern();
+  }
+
+  protected parseAssignmentPattern(): Assignee {
+    const left = this.parseAssignee();
+    this.trim();
+    if (this.willContinue() && this.is("Equals")) {
+      this.eat().type;
+      this.trim();
+      const right = this.parseExpression();
+      this.trim();
+
+      return this.new("AssignmentPattern", {
+        left, 
+        right
+      })
+    }
+    return left;
+  }
+
+  protected parseArgument(): Expression {
+    if (this.is("Spread")) {
+      this.eatTrim();
+      return this.parseSpreadElement();
+    }
+    return this.parseExpression();
+  }
+
+  // ----- Identifier
+
+  protected parseAnyIdentifier(len = false): AnyIdentifier {
+    if (this.if("Hash")) {
+      return this.parsePrivateIdentifier(len);
+    }
+    return this.parseIdentifier(len);
+  }
+
+  protected parsePrivateIdentifier(len = false): PrivateIdentifier {
+    if (len) {
+      const symbol = this.expectTag("Word", "Expected word").value;
+      return this.new("PrivateIdentifier", {symbol});
+    }
+    const symbol = this.expect("Identifier", "Expected identifier").value;
+    return this.new("PrivateIdentifier", {symbol});
+  }
+
+  protected parseIdentifier(len = false): Identifier {
+    if (len) {
+      const symbol = this.expectTag("Word", "Expected word").value;
+      return this.new("Identifier", {symbol});
+    }
+    const symbol = this.expect("Identifier", "Expected identifier").value;
+    return this.new("Identifier", {symbol});
+  }
+
+  // ----- Pattern
+
+  protected parseRestElement(): RestElement {
+    return this.new("RestElement", {argument: this.parseExpression()});
+  }
+
+  protected parseArrayPattern(): ArrayPattern {
+
+    this.eat();
+    this.trim();
+    const entries: Expression[] = [];
+    while (this.willContinue() && this.type() !== "CloseSquare") {
+      entries.push(this.parseRestPattern());
+      this.trim();
+      if (this.type() === "Comma") {
+        this.eat()
+        this.trim();
+      }
+    }
+    const array = this.new("ArrayPattern", {items: entries})
+    this.trim();
+    this.expect("CloseSquare", 
+      "Expected closing square bracket to end Array literal."
+    )
+    return array;
+  }
+
+  protected parseObjectPattern(): ObjectPattern {
+    this.eat();
+    this.trim();
+    const props = this.parsePatternProps();
+    const obj = this.new("ObjectPattern", {props})
+    this.trim();
+    this.expect("CloseBracket", 
+      "Expected closing bracket to end Object pattern."
+    )
+    return obj;
+  }
+
+  protected parsePatternProps(): PropPattern[] {
+    const props: PropPattern[] = [];
+    while (this.willContinue() && this.type() !== "CloseBracket") {
+      let key = this.parseRestPattern()
+      this.trim();
+      
+      if (key.type === "RestElement") {
+        props.push(key);
+      }
+      else {
+        let value: Assignee;
+        if (this.is("Colon")) {
+          this.eat();
+          this.trim();
+          value = this.parseAssignmentPattern();
+          this.trim();
+        }
+        else {
+          value = key;
+        }
+        if (key.type === "AssignmentPattern") {
+          value = key;
+          key = value.left;
+        }
+      
+        props.push(this.new("PropertyPattern", {
+          key,
+          value,
+          kind: "init",
+          method: false,
+          shorthand: false,
+          computed: false
+        }));
+      }
+
+      if (this.type() === "Comma") {
+        this.eat()
+        this.trim();
+      }
+    }
+    return props;
+  }
+
+  // ----- Class Expression
+
+
+  protected parseClassExpression(): ClassExpression {
+    this.eatTrim();
+    let id: AnyIdentifier | null = null;
+    if (this.is("Identifier")) {
+      id = this.parseAnyIdentifier();
+    }
+    this.trim();
+    let extend: Expression | null = null;
+    if (this.is("Extends")) {
+      this.eat();
+      this.trim();
+      extend = this.parseExpression();
+      this.trim();
+    }
+    this.expect("OpenBracket", "Expected bracket to open class body");
+    this.trim();
+    const body = this.parseClassBody();
+    this.trim();
+    return this.new("ClassExpression", {id, body, extend});
+  }
+
+  // ----- Function Expression
 
   protected parseFunctionExpression(async: boolean): FunctionExpression {
     this.eat();
@@ -1233,10 +1377,10 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
       this.trim();
     }
 
-    let id: Identifier | null = null;
+    let id: AnyIdentifier | null = null;
 
     if (this.is("Identifier")) {
-      id = this.parseIdentifier();
+      id = this.parseAnyIdentifier();
       this.trim();
     }
     this.expect("OpenParen", (
@@ -1290,69 +1434,63 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     })
   }
 
-  protected parseIdentifier(): Identifier {
-    const symbol =  this.expect("Identifier",
-      "Expected identifier"
-    ).value
-		return this.new("Identifier", {symbol})
-	}
+  // ----- Complex
 
-  protected parseKeywordExpression(nt: NodeType): Expression {
+  protected parseObjectExpression(): ObjectExpression {
     this.eat();
     this.trim();
-    return this.new(nt, {
-      node: this.parseExpression()
-    })
-  }
- 
-  protected parseString(): StringLiteral {
-    const raw = this.eat().value;
-    return this.new("StringLiteral", {
-      value: this.cook(raw).slice(1, -1),
-      raw,
-    })
-	}
- 
-  protected parseTemplateString(): TemplateStringLiteral {
-    this.eatTrim();
-    const quasis: TemplateElement[] = [];
-    const expressions: Expression[] = [];
-    while (this.willContinue() && this.isnt("BackQuote")) {
+    const props = this.parseExpressionProps();
 
-      let raw = "";
-      while (this.willContinue() && this.isntAny("OpenTemplate", "BackQuote")) {
-        if (this.is("BackSlash")) {
-          const slash = this.eat();
-          if (this.willContinue()) {
-            raw += this.eat().value;
-          }
-          else {
-            raw += slash;
-          }
+    const obj = this.new("ObjectExpression", {props})
+    this.trim();
+    this.expect("CloseBracket", 
+      "Expected closing bracket to end Object literal."
+    )
+    return obj;
+  }
+
+  protected parseExpressionProps(): PropExpression[] {
+    const props: PropExpression[] = [];
+    while (this.willContinue() && this.type() !== "CloseBracket") {
+      
+      if (this.if("Spread")) {
+        this.trim();
+        props.push(this.parseSpreadElement());
+      }
+
+      else {
+        const key = this.parseAnyIdentifier(true);
+        this.trim();
+        
+        let value: Expression;
+        const not_shorthand = this.is("Colon");
+
+        if (not_shorthand) {
+          this.eat();
+          this.trim();
+          value = this.parseExpression();
+          this.trim();
         }
         else {
-          raw += this.eat().value;
+          value = key;
         }
+        
+        props.push(this.new("PropertyExpression", {
+          key,
+          value,
+          kind: "init",
+          method: false,
+          shorthand: not_shorthand,
+          computed: false
+        }));
       }
-      const tail = this.is("BackQuote");
-      if (raw) {
-        quasis.push(this.new("TemplateElement", {
-          value: {
-            raw,
-            cooked: this.cook(raw),
-          },
-          tail
-        }))
-      }
-      if (this.if("OpenTemplate")) {
+
+      if (this.type() === "Comma") {
+        this.eat()
         this.trim();
-        expressions.push(this.parseExpression());
-        this.trim();
-        this.expect("CloseBracket", "Expected close bracket to close expression");
       }
     }
-    this.eatTrim();
-    return this.new("TemplateStringLiteral", {quasis, expressions});
+    return props;
   }
 
   protected parseArrayExpression(): ArrayExpression {
@@ -1376,124 +1514,68 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     return array;
   }
 
-  protected parseRestElement(): RestElement {
-    return this.new("RestElement", {argument: this.parseExpression()});
-  }
-
   protected parseSpreadElement(): SpreadElement {
     return this.new("SpreadElement", {argument: this.parseExpression()});
   }
+ 
+  protected parseTemplateString(): TemplateStringLiteral {
+    this.eatTrim();
+    const quasis: TemplateElement[] = [];
+    const expressions: Expression[] = [];
+    while (this.willContinue() && this.isnt("BackQuote")) {
 
-  protected parseArrayPattern(): ArrayPattern {
-
-    this.eat();
-    this.trim();
-    const entries: Expression[] = [];
-    while (this.willContinue() && this.type() !== "CloseSquare") {
-      entries.push(this.parseAssignmentPattern());
-      this.trim();
-      if (this.type() === "Comma") {
-        this.eat()
-        this.trim();
-      }
-    }
-    const array = this.new("ArrayPattern", {items: entries})
-    this.trim();
-    this.expect("CloseSquare", 
-      "Expected closing square bracket to end Array literal."
-    )
-    return array;
-  }
-
-  protected parseObjectExpression(): ObjectExpression {
-    this.eat();
-    this.trim();
-    const props: Property[] = [];
-    while (this.willContinue() && this.type() !== "CloseBracket") {
-
-      if (this.is("Spread")) {
-
-      }
-      else {
-        const key = this.expect("Identifier", 
-          "Expected identifier as key"
-        ).value;
-        this.trim();
-        let value: Expression | null = null;
-
-        if (this.is("Colon")) {
-          this.eat();
-          this.trim();
-          value = this.parseExpression();
-          this.trim();
+      let raw = "";
+      while (this.willContinue() && this.isntAny("OpenTemplate", "BackQuote")) {
+        if (this.is("BackSlash")) {
+          const slash = this.eat();
+          if (this.willContinue())
+            raw += this.eat().value;
+          else 
+            raw += slash;
         }
-
-        props.push(this.new("Property", {key, init: value}));
+        else
+          raw += this.eat().value;
       }
-
-      if (this.type() === "Comma") {
-        this.eat()
+      const tail = this.is("BackQuote");
+      if (raw) {
+        quasis.push(this.new("TemplateElement", {
+          value: {raw, cooked: this.cook(raw)},
+          tail,
+        }))
+      }
+      if (this.if("OpenTemplate")) {
         this.trim();
+        expressions.push(this.parseExpression());
+        this.trim();
+        this.expect("CloseBracket", "Expected close bracket to close expression");
       }
     }
-    const obj = this.new("ObjectExpression", {props})
-    this.trim();
-    this.expect("CloseBracket", 
-      "Expected closing bracket to end Object literal."
-    )
-    return obj;
+    this.eatTrim();
+    return this.new("TemplateStringLiteral", {quasis, expressions});
   }
 
-  protected parseObjectPattern(): ObjectPattern {
-    this.eat();
-    this.trim();
-    const props: Property[] = [];
-    while (this.willContinue() && this.type() !== "CloseBracket") {
+  // ----- Literals
 
-      const key = this.expect("Identifier", 
-        "Expected identifier as key"
-      ).value;
-      this.trim();
-      let value: Expression | null = null;
-
-      if (this.is("Equals")) {
-        this.eat();
-        this.trim();
-        value = this.parseExpression();
-        this.trim();
-      }
-
-      props.push(this.new("Property", {key, init: value}));
-
-      if (this.type() === "Comma") {
-        this.eat()
-        this.trim();
-      }
-    }
-    const obj = this.new("ObjectPattern", {props})
-    this.trim();
-    this.expect("CloseBracket", 
-      "Expected closing bracket to end Object pattern."
-    )
-    return obj;
+  protected parseString(): StringLiteral {
+    const raw = this.eat().value;
+    return this.new("StringLiteral", {
+      value: this.cook(raw).slice(1, -1),
+      raw,
+    })
   }
 
   protected parseNumericLiteral(): NumericLiteral {
     let raw = this.eat().value;
     let float = this.type() === "Period";
-
     if (float) {
       raw += this.eat().value;
       raw += this.expect("Number", 
         "Expected number after decimal period"
       ).value;
     }
-
     return this.new("NumericLiteral", {
-      value: parseInt(raw),
-      raw,
-      float
-    })
+      value: parseInt(raw), raw, float
+    });
   }
 
   protected parseRegExpLiteral(): RegExpLiteral {
@@ -1504,13 +1586,51 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     }
     this.eat();
     let flags = null;
-    if (this.is("Identifier")) {
-      flags = this.eat().value;
-    }
+    if (this.is("Identifier")) flags = this.eat().value;
     return this.new("RegExpLiteral", {
       value: {},
       raw: `/${pattern}/${flags||""}`,
       regex: {pattern, flags}
     })
+  }
+
+  // ----- Other
+
+  protected parseParameters(): Assignee[] {
+    const params: Assignee[] = [];
+    while(this.willContinue() && this.isnt("CloseParen")) {
+      params.push(this.parseRestPattern())
+      this.trim(); 
+      if (this.isnt("Comma")) break;
+      this.eatTrim();
+    }
+    this.expect("CloseParen", "Expected parenthesis to close function params");
+    this.trim();
+    return params;
+  }
+
+
+  // ===== TOOLS ===== 
+
+  protected trim() {
+    while (this.willContinue() && this.isAny("Br", "Tab", "Space")) {
+      this.eat();
+    }
+  }
+
+  protected trimsemi() {
+    this.trim();
+    while (this.willContinue() && this.is("Semicolon")) {
+      this.eatTrim();
+    }
+  }
+
+  protected eatTrim() {
+    this.eat();
+    this.trim()
+  }
+
+  protected cook(raw: string): string {
+    return raw === "\\"? raw : raw.replace(/\\/g, "");
   }
 }

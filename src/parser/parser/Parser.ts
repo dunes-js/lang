@@ -13,16 +13,16 @@ class ParserError extends Error {
 export abstract class Parser<
 	TokenType extends string, 
   AnyNode extends Node<any>,
-  const Options extends ParserOptions
+  const Options extends ParserOptions,
+  TokenTag extends string = string, 
 > {
 
-	#lexer: Lexer<TokenType>
-	constructor(lexer: Lexer<TokenType>) {
+	#lexer: Lexer<TokenType, TokenTag>
+	constructor(lexer: Lexer<TokenType, TokenTag>) {
 		this.#lexer = lexer;
 	}
 
-	body: AnyNode[] = [];
-	#tokens!: TokenList<TokenType>
+	#tokens!: TokenList<TokenType, TokenTag>
   #ast!: AST<AnyNode, Options["ast"]>
 
 	produce(source: string, options?: ParseOptions<Options["ast"]>): AST<AnyNode, Options["ast"]> {
@@ -35,8 +35,7 @@ export abstract class Parser<
 		while (this.willContinue()) {
 			try {
 				const p = this.parse() as AnyNode;
-				this.body.push(p);
-				this.#ast.program.body.push(p);
+				this.#ast.program.add(p);
 			}
 			catch(error) {
 				throw new ParserError(this.#tokens, error);
@@ -55,14 +54,14 @@ export abstract class Parser<
       propName: PropName, 
       value: Options["ast"]["programProps"][PropName]
     ) {
-    this.#ast.program.props[propName] = value;
+    this.#ast.program[propName] = value!;
   }
 
   protected hasProperty<
     PropName extends keyof Options["ast"]["programProps"]>(
       propName: PropName,
     ) {
-    return this.#ast.program.props[propName] != undefined;
+    return this.#ast.program[propName] != undefined;
   }
 
 	protected willContinue() {
@@ -84,17 +83,21 @@ export abstract class Parser<
     return look(new TokenList(...this.#tokens));
   }
 
-	protected eat<Ty extends TType<TokenType>>(): Token<Ty> {
-		return this.#tokens.shift() as Token<Ty>;
+	protected eat<Ty extends TType<TokenType>>(): Token<Ty, TokenTag> {
+		return this.#tokens.shift() as Token<Ty, TokenTag>;
 	}
 
 	protected type(): TType<TokenType> {
 		return this.#tokens[0]!.type;
 	}
 
-	protected if<Ty extends TType<TokenType>>(type: TType<Ty>): Token<Ty> | null {
+  protected has(tag: TokenTag): boolean {
+    return this.#tokens[0]!.has(tag)
+  }
+
+	protected if<Ty extends TType<TokenType>>(type: TType<Ty>): Token<Ty, TokenTag> | null {
 		if (type === this.#tokens[0]!.type) {
-			return this.#tokens.shift() as Token<Ty>;
+			return this.#tokens.shift() as Token<Ty, TokenTag>;
 		}
 		return null;
 	}
@@ -115,11 +118,18 @@ export abstract class Parser<
     return !types.includes(this.#tokens[0]!.type);
   }
 
-	protected expect<Ty extends TType<TokenType>>(type: Ty, error: string): Token<Ty> {
+	protected expect<Ty extends TType<TokenType>>(type: Ty, error: string): Token<Ty, TokenTag> {
 		if (this.#tokens[0]!.type !== type) {
 			throw error;
 		}
-		return this.#tokens.shift()! as Token<Ty>;
+		return this.#tokens.shift()! as Token<Ty, TokenTag>;
 	}
+
+  protected expectTag<Ty extends TokenTag>(tag: Ty, error: string): Token<Ty, TokenTag> {
+    if (this.#tokens[0]!.has(tag)) {
+      return this.#tokens.shift()! as Token<Ty, TokenTag>;
+    }
+    throw error;
+  }
 
 }

@@ -11,15 +11,15 @@ import type { Node, ParseOptions, ParserOptions } from "./parser/types.js";
 export class Lang<
   TokenType extends string,
   TokenTag extends string,
-  AnyValue extends Value<any>,
   AnyNode extends Node<any>,
   const Options extends ParserOptions,
+  AnyValue extends Value<any>,
 > {
 
   constructor(
     readonly lexer: Lex<TokenType, TokenTag>,
     readonly parser: Par<TokenType, AnyNode, Options, TokenTag>,
-    readonly interpreter: Int<AnyValue, AnyNode, Options>
+    readonly interpreter: Int<AnyValue, AnyNode, Options> | null = null
   ) {}
 
   #ast(source: string, options?: ParseOptions<Options["ast"]>): AST<AnyNode, Options["ast"]> {
@@ -31,6 +31,9 @@ export class Lang<
   }
 
   interpret(source: string): AnyValue {
+    if (!this.interpreter) {
+      throw `No interpreter has been declared`
+    }
     return this.interpreter.interpret(this.#ast(source));
   }
 }

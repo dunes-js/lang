@@ -1,4 +1,4 @@
-import { type TType, Token, TokenList, Lex } from "../lexer/index.js";
+import { type TType, type Token, TokenList } from "../lexer/index.js";
 import { AST } from "./AST.js";
 import type { Node, LookAhead, ParseOptions, ParserOptions } from "./types.js";
 
@@ -17,18 +17,13 @@ export abstract class Par<
   TokenTag extends string = string, 
 > {
 
-	#lexer: Lex<TokenType, TokenTag>
-	constructor(lexer: Lex<TokenType, TokenTag>) {
-		this.#lexer = lexer;
-	}
-
 	#tokens!: TokenList<TokenType, TokenTag>
   #ast!: AST<AnyNode, Options["ast"]>
 
-	produce(source: string, options?: ParseOptions<Options["ast"]>): AST<AnyNode, Options["ast"]> {
+	produce(tokens: TokenList<TokenType, TokenTag>, options?: ParseOptions<Options["ast"]>): AST<AnyNode, Options["ast"]> {
 
 		this.#ast = new AST<AnyNode, Options["ast"]>(options);
-		this.#tokens = this.#lexer.convert(source);
+		this.#tokens = tokens;
 
     this.onLoad?.();
 

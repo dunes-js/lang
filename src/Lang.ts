@@ -10,10 +10,10 @@ import type { Node, ParseOptions, ParserOptions } from "./parser/types.js";
 
 export class Lang<
   TokenType extends string,
-  TokenTag extends string,
   AnyNode extends Node<any>,
   const Options extends ParserOptions,
-  AnyValue extends Value<any>,
+  TokenTag extends string = string,
+  AnyValue extends Value<any> = Value<any>,
 > {
 
   constructor(

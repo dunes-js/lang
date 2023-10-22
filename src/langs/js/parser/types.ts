@@ -87,6 +87,7 @@ export type NodeType = (
   | "RegExpLiteral"
   | "TemplateStringLiteral"
   | "TemplateElement"
+  | "PropertyMethod"
 )
 
 export type SourceType = "cjs" | "esm"
@@ -119,6 +120,7 @@ export type AnyNode = (
   | TemplateStringLiteral
   | TemplateElement
   | PropertyPattern
+  | PropertyMethod
 
   | ImportDeclaration
   | ImportSpecifier
@@ -227,6 +229,7 @@ export type PropPattern = (
 
 export type PropExpression = (
   | PropertyExpression
+  | PropertyMethod
   | SpreadElement
 )
 
@@ -269,12 +272,12 @@ export interface BlockComment extends Statement {
 
 export interface BlockStatement extends Statement {
   type: "BlockStatement"
-  body: Expression[];
+  body: AnyNode[];
 }
 
 export interface ExpressionStatement extends Statement {
 	type: "ExpressionStatement"
-	expression: Expression;
+	expression: AnyNode;
 }
 
 export interface EmptyExpression extends Expression {
@@ -294,7 +297,7 @@ export interface VariableDeclaration extends Statement {
 export interface VariableDeclarator extends Expression {
   type: "VariableDeclarator"
   id: Assignee
-  init: Expression | null
+  init: AnyNode | null
 }
 
 
@@ -338,7 +341,7 @@ export interface ExportSpecifier extends Expression {
 
 export interface ExportDefaultDeclaration extends Expression {
   type: "ExportDefaultDeclaration"
-  declaration: Expression
+  declaration: AnyNode
 }
 
 export interface ExportAllDeclaration extends Expression {
@@ -370,7 +373,7 @@ export interface FunctionDeclaration extends Statement {
 export interface ClassDeclaration extends Statement {
   type: "ClassDeclaration"
   id: AnyIdentifier
-  extend: Expression | null
+  extend: AnyNode | null
   body: ClassBody
 }
 
@@ -391,7 +394,7 @@ export interface ClassMethod extends ClassVar {
 
 export interface ClassProperty extends ClassVar {
   type: "ClassProperty"
-  init: Expression | null
+  init: AnyNode | null
 }
 
 // ===== STATEMENT =====
@@ -400,36 +403,36 @@ export interface ClassProperty extends ClassVar {
 
 export interface ReturnStatement extends Statement {
   type: "ReturnStatement"
-  node: Expression
+  node: AnyNode
 }
 
 export interface ThrowStatement extends Statement {
   type: "ThrowStatement"
-  node: Expression
+  node: AnyNode
 }
 
 // ----- For Loop
 
 export interface ForInStatement extends Statement {
   type: "ForInStatement"
-  left: Expression
-  right: Expression
+  left: AnyNode
+  right: AnyNode
   body: Consequent
 }
 
 export interface ForOfStatement extends Statement {
   type: "ForOfStatement"
-  left: Expression
-  right: Expression
+  left: AnyNode
+  right: AnyNode
   body: Consequent
   await: boolean
 }
 
 export interface ForStatement extends Statement {
   type: "ForStatement"
-  init: Expression | null
-  test: Expression | null
-  update: Expression | null
+  init: AnyNode | null
+  test: AnyNode | null
+  update: AnyNode | null
   body: Consequent
 }
 
@@ -437,13 +440,13 @@ export interface ForStatement extends Statement {
 
 export interface DoWhileStatement extends Statement {
   type: "DoWhileStatement"
-  test: Expression
+  test: AnyNode
   body: BlockStatement
 }
 
 export interface WhileStatement extends Statement {
   type: "WhileStatement"
-  test: Expression
+  test: AnyNode
   body: Consequent
 }
 
@@ -451,7 +454,7 @@ export interface WhileStatement extends Statement {
 
 export interface IfStatement extends Statement {
   type: "IfStatement"
-  test: Expression
+  test: AnyNode
   consequent: Consequent
   alternate: IfStatement | Consequent | null
 }
@@ -460,7 +463,7 @@ export interface IfStatement extends Statement {
 
 export interface WithStatement extends Statement {
   type: "WithStatement"
-  namespace: Expression
+  namespace: AnyNode
   body: Consequent
 }
 
@@ -483,14 +486,14 @@ export interface CatchClause extends Statement {
 
 export interface SwitchStatement extends Statement {
   type: "SwitchStatement"
-  discriminant: Expression
+  discriminant: AnyNode
   cases: SwitchCase[]
 }
 
 export interface SwitchCase extends Expression {
   type: "SwitchCase"
   consequent: Consequent | null
-  test: Expression | null
+  test: AnyNode | null
 }
 
 // ===== EXPRESSION =====
@@ -498,13 +501,13 @@ export interface SwitchCase extends Expression {
 export interface TemplateStringExpression extends Expression {
 	type: "TemplateStringExpression"
 	quasi: TemplateStringLiteral
-	tag: Expression
+	tag: AnyNode
 }
 
 export interface CallExpression extends Expression {
   type: "CallExpression"
-  args: Expression[]
-  caller: Expression
+  args: AnyNode[]
+  caller: AnyNode
   optional: boolean
 }
 
@@ -512,9 +515,9 @@ export interface CallExpression extends Expression {
 
 export interface ConditionalExpression extends Statement {
   type: "ConditionalExpression"
-  test: Expression
-  consequent: Expression
-  alternate: Expression
+  test: AnyNode
+  consequent: AnyNode
+  alternate: AnyNode
 }
 
 // ----- Binary
@@ -522,14 +525,14 @@ export interface ConditionalExpression extends Statement {
 export interface AssignmentExpression extends Expression {
 	type: "AssignmentExpression"
 	operator: TokenType
-	assigne: Expression
-	value: Expression
+	assigne: AnyNode
+	value: AnyNode
 }
 
 export interface MemberExpression extends Expression {
 	type: "MemberExpression"
-  object: Expression
-  property: Expression
+  object: AnyNode
+  property: AnyNode
   computed: boolean
   optional: boolean
 }
@@ -538,19 +541,20 @@ export interface BinaryExpression extends Expression {
   type: "BinaryExpression"
   kind: "add" | "mul" | "com"
 	operator: TokenType
-	left: Expression
-	right: Expression
+	left: AnyNode
+	right: AnyNode
 }
 
 // ----- Pattern
 
 export interface ArrayPattern extends Expression {
   type: "ArrayPattern"
-  items: Expression[]
+  items: AnyNode[]
 }
 
 export interface PropertyPattern extends Property {
-  key: Assignee
+  kind: 'init'
+  key: Assignee | StringLiteral
   type: "PropertyPattern"
   value: Assignee
 }
@@ -568,7 +572,7 @@ export interface Identifier extends Expression {
 export interface AssignmentPattern extends Expression {
   type: "AssignmentPattern"
   left: Assignee
-  right: Expression
+  right: AnyNode
 }
 
 export interface RestElement extends ArgumentExpression {
@@ -587,17 +591,20 @@ export interface BaseFunctionExpression extends Expression {
   params: Assignee[]
 }
 
+export interface BaseFunction extends BaseFunctionExpression {
+  body: BlockStatement
+  generator: boolean
+}
+
 export interface ClassExpression extends Expression {
   type: "ClassExpression"
   id: AnyIdentifier | null
-  extend: Expression | null
+  extend: AnyNode | null
   body: ClassBody
 }
 
-export interface FunctionExpression extends BaseFunctionExpression {
+export interface FunctionExpression extends BaseFunction {
   type: "FunctionExpression"
-  body: BlockStatement
-  generator: boolean
   id: AnyIdentifier | null
 }
 
@@ -609,7 +616,7 @@ export interface ArrowFunctionExpression extends BaseFunctionExpression {
 
 export interface ArrayExpression extends Expression {
   type: "ArrayExpression"
-  items: Expression[]
+  items: AnyNode[]
 }
 
 export interface ObjectExpression extends Expression {
@@ -618,21 +625,27 @@ export interface ObjectExpression extends Expression {
 }
 
 export interface Property extends Expression {
-  kind: 'init'
+  kind: 'init' | 'method'
+  key: AnyNode
   shorthand: boolean
   method: boolean
   computed: boolean
 }
 
 export interface PropertyExpression extends Property {
-  key: Expression
   type: "PropertyExpression"
-  value: Expression
+  kind: "init"
+  value: AnyNode
+}
+
+export interface PropertyMethod extends Property, BaseFunction {
+  type: "PropertyMethod"
+  kind: "method"
 }
 
 export interface TemplateStringLiteral extends Expression {
   type: "TemplateStringLiteral"
-  expressions: Expression[]
+  expressions: AnyNode[]
   quasis: TemplateElement[]
 }
 
@@ -665,7 +678,7 @@ export interface UpdateExpression extends Expression {
 }
 
 export interface ArgumentExpression extends Expression {
-  argument: Expression
+  argument: AnyNode
 }
 
 export interface UnaryExpression extends ArgumentExpression {
@@ -680,22 +693,22 @@ export interface SpreadElement extends ArgumentExpression {
 
 export interface LabeledStatement extends Statement {
   type: "LabeledStatement"
-  body: Expression
+  body: AnyNode
 }
 
 export interface NewExpression extends Expression {
 	type: "NewExpression"
-	caller: Expression
+	caller: AnyNode
 }
 
 export interface AwaitExpression extends Expression {
 	type: "AwaitExpression"
-	node: Expression
+	node: AnyNode
 }
 
 export interface SequenceExpression extends Expression {
   type: "SequenceExpression"
-  nodes: Expression[]
+  nodes: AnyNode[]
 }
 
 // ----- Literal

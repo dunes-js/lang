@@ -85,7 +85,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     }
   }
 
-	protected override parse(): Expression {
+	protected override parse(): AnyNode {
 		this.trim();
     let stmt;
 
@@ -228,7 +228,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
   protected parseBlock(): BlockStatement {
     this.eatTrim();
-    const body: Expression[] = [];
+    const body: AnyNode[] = [];
     while (this.willContinue() && this.isnt("CloseBracket")) {
       body.push(this.parse());
       this.trim();
@@ -485,7 +485,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 		this.eatTrim();
 		const id = this.parseAnyIdentifier();
 		this.trim();
-		let extend: Expression | null = null;
+		let extend: AnyNode | null = null;
 		if (this.is("Extends")) {
 			this.eat();
 			this.trim();
@@ -530,7 +530,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 	
   protected parseClassProperty(id: AnyIdentifier): ClassProperty {
 		
-		let init: Expression | null = null;
+		let init: AnyNode | null = null;
 		if (this.is("Equals")) {
 			this.eat();
 			this.trim();
@@ -599,7 +599,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     }
   }
   
-  protected parseForOfStatement(left: Expression, awaits: boolean): ForOfStatement {
+  protected parseForOfStatement(left: AnyNode, awaits: boolean): ForOfStatement {
     this.eatTrim();
 
     const right = this.parseExpression();
@@ -614,7 +614,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     return this.new("ForOfStatement", {left, right, await: awaits, body});
   }
   
-  protected parseForInStatement(left: Expression): ForInStatement {
+  protected parseForInStatement(left: AnyNode): ForInStatement {
     this.eatTrim();
 
     const right = this.parseExpression();
@@ -629,7 +629,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     return this.new("ForInStatement", {left, right, body});
   }
   
-  protected parseForStatement(init: Expression | null): ForStatement {
+  protected parseForStatement(init: AnyNode | null): ForStatement {
     this.expect("Semicolon", "Expected semicolon after 'init'");
     this.trim();
 
@@ -836,11 +836,11 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
   // ===== EXPRESSION =====
 
-  protected parseExpression(): Expression {
+  protected parseExpression(): AnyNode {
 		return this.parseAssignment();
 	}
 
-  protected parseAssignment(): Expression {
+  protected parseAssignment(): AnyNode {
     const assigne = this.parseConditional();
     this.trim();
 
@@ -863,7 +863,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
   // ----- Conditional
 
-  protected parseConditional(): Expression {
+  protected parseConditional(): AnyNode {
     const test = this.parseAdditive();
     this.trim();
     if (this.willContinue() && this.is("Question")) {
@@ -880,7 +880,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
   // ----- Binary
 
-  protected parseAdditive(): Expression {
+  protected parseAdditive(): AnyNode {
 
     const left = this.parseMultiplicative();
 
@@ -899,7 +899,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     return left;
   }
 
-  protected parseMultiplicative(): Expression {
+  protected parseMultiplicative(): AnyNode {
 
 		const left = this.parseComparative();
 
@@ -918,7 +918,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 		return left;
 	}
 
-  protected parseComparative(): Expression {
+  protected parseComparative(): AnyNode {
 
     const left = this.parseMemberCall();
 
@@ -946,8 +946,8 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
   // ----- Member, Call
 
-  protected parseMemberCall(): Expression {
-		let member: Expression = this.parseMember(null, false);
+  protected parseMemberCall(): AnyNode {
+		let member: AnyNode = this.parseMember(null, false);
 		this.trim();
 		if (this.is("OpenParen")) {
 			member = this.parseCall(member, false);
@@ -964,7 +964,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 		return member;
 	}
 
-  protected parseMember(parent: Expression | null, optional: boolean): Expression {
+  protected parseMember(parent: AnyNode | null, optional: boolean): AnyNode {
 		let object = parent || this.parsePrimary();
 		this.trim();
 		while (this.willContinue() && this.isAny("Period", "OpenSquare")) {
@@ -993,10 +993,10 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 		return object;
 	}
 
-  protected parseCall(caller: Expression, optional: boolean): CallExpression {
+  protected parseCall(caller: AnyNode, optional: boolean): CallExpression {
 		this.eat();
 		this.trim();
-		const args: Expression[] = [];
+		const args: AnyNode[] = [];
 		while(this.willContinue() && this.isnt("CloseParen")) {
 			args.push(this.parseArgument());
 			this.trim();
@@ -1024,7 +1024,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
   // ----- Primary Expression
 
-  protected parsePrimary(): Expression {
+  protected parsePrimary(): AnyNode {
     switch(this.type()) {
       case "Async": {
         this.eat();
@@ -1116,7 +1116,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
         this.expect("Comma", "Expected comma for sequence");
         this.trim();
-        const nodes: Expression[] = [node];
+        const nodes: AnyNode[] = [node];
         while (this.willContinue() && this.isnt("CloseParen")) {
           nodes.push(this.parseExpression())
           this.trim();
@@ -1262,7 +1262,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
     return left;
   }
 
-  protected parseArgument(): Expression {
+  protected parseArgument(): AnyNode {
     if (this.is("Spread")) {
       this.eatTrim();
       return this.parseSpreadElement();
@@ -1307,7 +1307,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
     this.eat();
     this.trim();
-    const entries: Expression[] = [];
+    const entries: AnyNode[] = [];
     while (this.willContinue() && this.type() !== "CloseSquare") {
       entries.push(this.parseRestPattern());
       this.trim();
@@ -1339,42 +1339,56 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
   protected parsePatternProps(): PropPattern[] {
     const props: PropPattern[] = [];
     while (this.willContinue() && this.type() !== "CloseBracket") {
-      let key = this.parseRestPattern()
-      this.trim();
-      
-      if (key.type === "RestElement") {
-        props.push(key);
+     
+      if (this.if("Spread")) {
+        this.trim();
+        props.push(this.parseRestElement());
       }
       else {
+        let shorthand = false;
+        let key: Assignee | StringLiteral
         let value: Assignee;
-        if (this.is("Colon")) {
-          this.eat();
+        const computed = this.is("OpenSquare");
+
+        if (computed) {
+          this.eatTrim();
+          key = this.parseAssignee();
+          this.trim();
+          this.expect("CloseSquare", "Expected close square to end indexed type.")
+        }
+        else if (this.is("String")) {
+          key = this.parseString();
+        }
+        else {
+          key = this.parseAnyIdentifier(true);
+        }
+
+        this.trim();
+        if (this.if("Colon")) {
           this.trim();
           value = this.parseAssignmentPattern();
           this.trim();
         }
         else {
+          if (key.type !== "Identifier" && key.type !== "PrivateIdentifier") {
+            throw `Expected initiation not ${key.type}`;
+          }
+          shorthand = true;
           value = key;
         }
-        if (key.type === "AssignmentPattern") {
-          value = key;
-          key = value.left;
-        }
-      
+        
         props.push(this.new("PropertyPattern", {
           key,
           value,
           kind: "init",
           method: false,
-          shorthand: false,
-          computed: false
+          shorthand,
+          computed
         }));
       }
 
-      if (this.type() === "Comma") {
-        this.eat()
-        this.trim();
-      }
+      if (this.isnt("Comma")) break;
+      this.eatTrim();
     }
     return props;
   }
@@ -1389,7 +1403,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
       id = this.parseAnyIdentifier();
     }
     this.trim();
-    let extend: Expression | null = null;
+    let extend: AnyNode | null = null;
     if (this.is("Extends")) {
       this.eat();
       this.trim();
@@ -1489,11 +1503,10 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
         this.trim();
         props.push(this.parseSpreadElement());
       }
-
       else {
         let shorthand = false;
-        let value: Expression;
-        let key: Expression
+        let value: AnyNode;
+        let key: AnyNode
         const computed = this.is("OpenSquare");
 
         if (computed) {
@@ -1512,14 +1525,33 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
         this.trim();
         if (this.if("Colon")) {
           this.trim();
-          shorthand = true;
           value = this.parseExpression();
           this.trim();
         }
+        else if (this.if("OpenParen")) {
+          this.trim();
+          const params = this.parseParameters();
+          this.trim();
+          const body = this.parseBlock();
+          this.trim();
+          props.push(this.new("PropertyMethod", {
+            key,
+            params,
+            body,
+            kind: "method",
+            method: true,
+            shorthand,
+            computed,
+            async: false,
+            generator: false
+          }));
+          continue;
+        }
         else {
           if (key.type !== "Identifier" && key.type !== "PrivateIdentifier") {
-            throw "Expected colon after not id key";
+            throw `Expected initiation not ${key.type}`;
           }
+          shorthand = true;
           value = key;
         }
         
@@ -1543,7 +1575,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
 
     this.eat();
     this.trim();
-    const entries: Expression[] = [];
+    const entries: AnyNode[] = [];
     while (this.willContinue() && this.type() !== "CloseSquare") {
       entries.push(this.parseArgument());
       this.trim();
@@ -1567,7 +1599,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
   protected parseTemplateString(): TemplateStringLiteral {
     this.eatTrim();
     const quasis: TemplateElement[] = [];
-    const expressions: Expression[] = [];
+    const expressions: AnyNode[] = [];
     while (this.willContinue() && this.isnt("BackQuote")) {
 
       let raw = "";

@@ -1,6 +1,6 @@
 {
-  "name": "@dunes/parser",
-  "version": "0.9.8",
+  "name": "@dunes/lang",
+  "version": "0.9.1",
   "type": "module",
   "license": "MIT",
   "main": "./lib/index.js",
@@ -34,11 +34,6 @@
       "main": "./lib/parser/compiler/index.js",
       "import": "./lib/parser/compiler/index.js",
       "types": "./lib/parser/compiler/index.d.ts"
-    },
-    "./js": {
-      "main": "./lib/langs/js/index.js",
-      "import": "./lib/langs/js/index.js",
-      "types": "./lib/langs/js/index.d.ts"
     }
   },
   "keywords": [

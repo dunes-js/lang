@@ -1,12 +1,12 @@
-import { interpreter, parser } from "../../../index.js";
+import { int, par } from "../../../index.js";
 import type { TokenType } from "../lexer/types.js";
 import type { AnyNode, BinaryExpression, Identifier, NumericLiteral, StringLiteral } from "../parser/types.js";
 import type { AnyValue, NumberValue, RealValue, StringValue, UndefinedValue } from "./types.js";
 
-export class JSInterpreter extends interpreter.Interpreter<AnyValue, AnyNode, parser.ParserOptions> {
+export class JSInterpreter extends int.Int<AnyValue, AnyNode, par.ParserOptions> {
   
-  override globalEnvironment(): interpreter.Environment<AnyValue> {
-    return new interpreter.Environment(null).with({
+  override globalEnvironment(): int.Environment<AnyValue> {
+    return new int.Environment(null).with({
       true:  this.new("Boolean", {value: true }),
       false: this.new("Boolean", {value: false}),
       undefined: this.new("Undefined", {}),
@@ -17,7 +17,7 @@ export class JSInterpreter extends interpreter.Interpreter<AnyValue, AnyNode, pa
     return this.new("Undefined", {});
   }
   
-  override evaluate(node: AnyNode, env: interpreter.Environment<AnyValue>): AnyValue {
+  override evaluate(node: AnyNode, env: int.Environment<AnyValue>): AnyValue {
     
     switch(node.type) {
 
@@ -52,7 +52,7 @@ export class JSInterpreter extends interpreter.Interpreter<AnyValue, AnyNode, pa
     return node.type !== "Undefined" && node.type !== "NaN";
   }
 
-  protected evaluateBinaryExpression(node: BinaryExpression, env: interpreter.Environment<AnyValue>): AnyValue {
+  protected evaluateBinaryExpression(node: BinaryExpression, env: int.Environment<AnyValue>): AnyValue {
 
     const lhs = this.evaluate(node.left, env);
     const rhs = this.evaluate(node.right, env);
@@ -122,7 +122,7 @@ export class JSInterpreter extends interpreter.Interpreter<AnyValue, AnyNode, pa
     return this.new("String", {value});
   }
 
-  protected evaluateIdentifier(node: Identifier, env: interpreter.Environment<AnyValue>): AnyValue {
+  protected evaluateIdentifier(node: Identifier, env: int.Environment<AnyValue>): AnyValue {
     return env.find(node.symbol);
   }
 

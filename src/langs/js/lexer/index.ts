@@ -1,13 +1,13 @@
-import { lexer } from "../../../index.js";
+import { lex } from "../../../index.js";
 import type { TokenTag, TokenType } from "./types.js";
 export type { TokenType, TokenTag }
 
-export class JSLexer extends lexer.Lexer<TokenType, TokenTag> {
+export class JSLexer extends lex.Lex<TokenType, TokenTag> {
 
 	protected override read() {
 
     if (this.is('"')) {
-      const chars: lexer.Char[] = [this.eat()];
+      const chars: lex.Char[] = [this.eat()];
 
       while (!this.finished() && !this.is('"')) {
         const val = this.eat();
@@ -23,7 +23,7 @@ export class JSLexer extends lexer.Lexer<TokenType, TokenTag> {
     }
 
     if (this.is("'")) {
-      const chars: lexer.Char[] = [this.eat()];
+      const chars: lex.Char[] = [this.eat()];
 
       while (!this.finished() && !this.is("'")) {
         const val = this.eat();
@@ -43,7 +43,7 @@ export class JSLexer extends lexer.Lexer<TokenType, TokenTag> {
     }
 
 		if (this.isLetter() || this.is("$")) {
-			const chars: lexer.Char[] = [this.eat()];
+			const chars: lex.Char[] = [this.eat()];
 			while (!this.finished() && (
         this.isLetter() || this.is("$") || this.match(/[0-9]|_/)
       )) {
@@ -95,7 +95,7 @@ export class JSLexer extends lexer.Lexer<TokenType, TokenTag> {
 		}
 
 		if (this.match(/[0-9]/)) {
-			const chars: lexer.Char[] = [this.eat()];
+			const chars: lex.Char[] = [this.eat()];
 			while (!this.finished() && this.match(/[0-9]/)) {
 				chars.push(this.eat());
 			}

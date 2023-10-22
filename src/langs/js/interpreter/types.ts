@@ -1,4 +1,4 @@
-import type { interpreter } from "../../../index.js";
+import type { int } from "../../../index.js";
 
 
 export type ValueType = (
@@ -24,7 +24,7 @@ export type RealValue = (
 );
 
 
-export interface RuntimeValue extends interpreter.Value<ValueType> {}
+export interface RuntimeValue extends int.Value<ValueType> {}
 
 export interface UndefinedValue extends RuntimeValue {
   type: "Undefined"

@@ -5,7 +5,7 @@ import type { Environment } from "./Environment.js";
 
 
 
-export abstract class Interpreter<
+export abstract class Int<
   AnyValue extends Value<any>,
   AnyNode extends Node<any>,
   const Options extends ParserOptions

@@ -15,6 +15,26 @@
       "import": "./lib/index.js",
       "types": "./lib/index.d.ts"
     },
+    "./lex": {
+      "main": "./lib/parser/lexer/index.js",
+      "import": "./lib/parser/lexer/index.js",
+      "types": "./lib/parser/lexer/index.d.ts"
+    },
+    "./par": {
+      "main": "./lib/parser/parser/index.js",
+      "import": "./lib/parser/parser/index.js",
+      "types": "./lib/parser/parser/index.d.ts"
+    },
+    "./int": {
+      "main": "./lib/parser/interpreter/index.js",
+      "import": "./lib/parser/interpreter/index.js",
+      "types": "./lib/parser/interpreter/index.d.ts"
+    },
+    "./com": {
+      "main": "./lib/parser/compiler/index.js",
+      "import": "./lib/parser/compiler/index.js",
+      "types": "./lib/parser/compiler/index.d.ts"
+    },
     "./js": {
       "main": "./lib/langs/js/index.js",
       "import": "./lib/langs/js/index.js",

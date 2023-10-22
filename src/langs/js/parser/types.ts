@@ -1,4 +1,4 @@
-import { parser } from "../../../index.js";
+import { par } from "../../../index.js";
 import type { TokenType } from "../lexer/index.js";
 
 export type NodeType = (
@@ -250,7 +250,7 @@ export type Consequent = (
   | EmptyExpression
 )
 
-export interface Expression extends parser.Node<NodeType> {}
+export interface Expression extends par.Node<NodeType> {}
 
 export interface Statement extends Expression {}
 

@@ -1,4 +1,4 @@
-import { type TType, Token, TokenList, Lexer } from "../lexer/index.js";
+import { type TType, Token, TokenList, Lex } from "../lexer/index.js";
 import { AST } from "./AST.js";
 import type { Node, LookAhead, ParseOptions, ParserOptions } from "./types.js";
 
@@ -10,15 +10,15 @@ class ParserError extends Error {
 	}
 }
 
-export abstract class Parser<
+export abstract class Par<
 	TokenType extends string, 
   AnyNode extends Node<any>,
   const Options extends ParserOptions,
   TokenTag extends string = string, 
 > {
 
-	#lexer: Lexer<TokenType, TokenTag>
-	constructor(lexer: Lexer<TokenType, TokenTag>) {
+	#lexer: Lex<TokenType, TokenTag>
+	constructor(lexer: Lex<TokenType, TokenTag>) {
 		this.#lexer = lexer;
 	}
 

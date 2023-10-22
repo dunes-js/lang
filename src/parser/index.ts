@@ -1,5 +1,5 @@
 
-export * as lexer from "./lexer/index.js"
-export * as parser from "./parser/index.js"
-export * as interpreter from "./interpreter/index.js"
-export * as compiler from "./compiler/index.js"
+export * as lex from "./lexer/index.js"
+export * as par from "./parser/index.js"
+export * as int from "./interpreter/index.js"
+export * as com from "./compiler/index.js"

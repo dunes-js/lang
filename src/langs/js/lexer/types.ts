@@ -1,7 +1,7 @@
-import type { lexer } from "../../../index.js";
+import type { lex } from "../../../index.js";
 
 
-export type TokenType = lexer.TType<(  
+export type TokenType = lex.TType<(  
   | "Ampersand"
   | "AmpersandEquals"
   | "Arrow"

@@ -1,4 +1,4 @@
-import { lexer, parser } from "../../../index.js";
+import { lex, par } from "../../../index.js";
 import { JSLexer, type TokenTag, type TokenType } from "../lexer/index.js";
 import type { 
   AnyDeclaration,
@@ -66,7 +66,7 @@ import type {
  * - indexed inside object
  * */
 
-export class JSParser extends parser.Parser<TokenType, AnyNode, {
+export class JSParser extends par.Par<TokenType, AnyNode, {
   ast: {
     programProps: {
       sourceType: SourceType
@@ -1091,7 +1091,7 @@ export class JSParser extends parser.Parser<TokenType, AnyNode, {
                 while (tokens.length && ["Br", "Tab", "Space"].includes(tokens[0]!.type))  {
                   tokens.shift();
                 }
-                return (tokens[0] as lexer.Token<TokenType>)!.type === "Arrow";
+                return (tokens[0] as lex.Token<TokenType>)!.type === "Arrow";
               }
               else depth--;
             }

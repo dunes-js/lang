@@ -8,7 +8,7 @@ import type { Node, ProgramProps } from "../parser/types.js";
 import { Program } from "../parser/Program.js";
 
 
-export class Compiler<
+export class Com<
   AnyNode extends Node<any>, 
   P extends ProgramProps
 > {

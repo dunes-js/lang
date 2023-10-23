@@ -1,11 +1,11 @@
-import type { TokenList } from "../lexer/Token.js"
+import type { TokenAnalyzer } from "./Analyzer.js"
 
 export interface Node<T extends PropertyKey> {
 	type: T
 }
 
-export interface LookAhead<T extends string, X> {
-  (tokens: TokenList<T>): X
+export interface LookAhead<Type extends string, Tag extends string, X> {
+  (tokens: TokenAnalyzer<Type, Tag>): X
 }
 
 export type ParseOptions<Opts extends ProgramProps> = {

@@ -1,6 +1,6 @@
 import { Char, CharList } from "./Char.js";
-import { Token, TokenList } from "./Token.js";
-import type { TknType, TagType } from "./types.js";
+import { Token } from "./Token.js";
+import type { TknType, TagType, TokenList } from "./types.js";
 
 /**
  * Abstract class for converting source to token list
@@ -17,7 +17,7 @@ export abstract class Lex<
    */
 	convert(source: string): TokenList<Type, Tag> {
 		this.#chars = new CharList(source);
-		const tokens = new TokenList<Type, Tag>();
+		const tokens: TokenList<Type, Tag> = [];
 		while (this.#chars.length) {
 			try {
         const token = this.read();

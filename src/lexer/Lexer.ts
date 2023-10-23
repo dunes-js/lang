@@ -1,6 +1,6 @@
 import { Char, CharList } from "./Char.js";
 import { Token, TokenList } from "./Token.js";
-import type { TType } from "./types.js";
+import type { TknType, TagType } from "./types.js";
 
 export abstract class Lex<
   Type extends string,
@@ -21,9 +21,9 @@ export abstract class Lex<
 		return tokens;
 	}
 
-	protected abstract read(): Token<TType<Type>, Tag> | null;
+	protected abstract read(): Token<TknType<Type>, TagType<Tag>> | null;
 
-	protected new(type: TType<Type>, ...chars: Char[]): Token<TType<Type>, Tag> {
+	protected new(type: TknType<Type>, ...chars: Char[]): Token<TknType<Type>, TagType<Tag>> {
 		return new Token(type, ...chars)
 	}
 

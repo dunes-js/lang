@@ -1,4 +1,4 @@
-import { type TType, type Token, TokenList } from "../lexer/index.js";
+import { type TknType, type Token, TokenList, type TagType } from "../lexer/index.js";
 import { AST } from "./AST.js";
 import type { Node, LookAhead, ParseOptions, ParserOptions } from "./types.js";
 
@@ -78,52 +78,62 @@ export abstract class Par<
     return look(new TokenList(...this.#tokens));
   }
 
-	protected eat<Ty extends TType<TokenType>>(): Token<Ty, TokenTag> {
+	protected eat<Ty extends TknType<TokenType>>(): Token<Ty, TokenTag> {
 		return this.#tokens.shift() as Token<Ty, TokenTag>;
 	}
 
-	protected type(): TType<TokenType> {
+	protected type(): TknType<TokenType> {
 		return this.#tokens[0]!.type;
 	}
 
-  protected has(tag: TokenTag): boolean {
+  protected has(tag: TagType<TokenTag>): boolean {
     return this.#tokens[0]!.has(tag)
   }
 
-	protected if<Ty extends TType<TokenType>>(type: TType<Ty>): Token<Ty, TokenTag> | null {
+	protected if<Ty extends TknType<TokenType>>(type: TknType<Ty>): Token<Ty, TokenTag> | null {
 		if (type === this.#tokens[0]!.type) {
 			return this.#tokens.shift() as Token<Ty, TokenTag>;
 		}
 		return null;
 	}
-	protected is(type: TType<TokenType>): boolean {
+	protected is(type: TknType<TokenType>): boolean {
 		return type === this.#tokens[0]!.type;
 	}
 
-	protected isnt(type: TType<TokenType>): boolean {
+	protected isnt(type: TknType<TokenType>): boolean {
 		return type !== this.#tokens[0]!.type;
 	}
 
-	protected isAny(...types: TType<TokenType>[]): boolean {
+	protected isAny(...types: TknType<TokenType>[]): boolean {
 		return types.includes(this.#tokens[0]!.type);
 	}
 
-  protected isntAny(...types: TType<TokenType>[]): boolean {
+  protected isntAny(...types: TknType<TokenType>[]): boolean {
     return !types.includes(this.#tokens[0]!.type);
   }
 
-	protected expect<Ty extends TType<TokenType>>(type: Ty, error: string): Token<Ty, TokenTag> {
+	protected expect<Ty extends TknType<TokenType>>(type: Ty, error: string): Token<Ty, TokenTag> {
 		if (this.#tokens[0]!.type !== type) {
 			throw error;
 		}
 		return this.#tokens.shift()! as Token<Ty, TokenTag>;
 	}
 
-  protected expectTag<Ty extends TokenTag>(tag: Ty, error: string): Token<Ty, TokenTag> {
+  protected expectTag<Ty extends TagType<TokenTag>>(tag: Ty, error: string): Token<Ty, TokenTag> {
     if (this.#tokens[0]!.has(tag)) {
       return this.#tokens.shift()! as Token<Ty, TokenTag>;
     }
     throw error;
   }
+
+  protected trim() {
+    while (this.willContinue() && this.has("WhiteSpace")) this.eat();
+  }
+
+  protected eatTrim() {
+    this.eat();
+    this.trim()
+  }
+
 
 }

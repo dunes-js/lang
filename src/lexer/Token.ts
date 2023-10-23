@@ -1,6 +1,6 @@
 import type { Recommend } from "@dunes/tools";
 import type { Char } from "./Char.js";
-import type { TType } from "./types.js";
+import type { TagType, TknType } from "./types.js";
 
 export class Token<
   Type extends string, 
@@ -71,4 +71,4 @@ class TokenValue extends String {
 export class TokenList<
   Type extends string, 
   Tag extends string = string
-> extends Array<Token<TType<Type>, Tag>> {}
+> extends Array<Token<TknType<Type>, TagType<Tag>>> {}

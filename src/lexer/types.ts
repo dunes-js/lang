@@ -5,4 +5,5 @@ export interface Position {
 }
 
 
-export type TType<T extends string> = T | "EOF"
+export type TknType<T extends string> = T | "EOF";
+export type TagType<T extends string> = T | "WhiteSpace";

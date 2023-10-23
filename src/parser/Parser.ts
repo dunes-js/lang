@@ -11,6 +11,10 @@ export abstract class Par<
   TokenTag extends string = string, 
 > extends TokenAnalyzer<TokenType, TokenTag> {
 
+  constructor() {
+    super();
+  }
+
   #ast!: AST<AnyNode, Options["ast"]>
 
 	produce(tokens: TokenList<TokenType, TokenTag>, options?: ParseOptions<Options["ast"]>): AST<AnyNode, Options["ast"]> {

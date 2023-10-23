@@ -34,6 +34,10 @@ export class Token<
   has(tag: Recommend<Tag>): boolean {
     return this.#tags.includes(tag as Tag);
   }
+
+  includes(tags: Recommend<Tag>[]): boolean {
+    return tags.some(tag => this.#tags.includes(tag as Tag));
+  }
 }
 
 /*->

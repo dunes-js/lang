@@ -17,7 +17,12 @@ export abstract class Int<
     let lastEvaluated = this.emptyValue();
     const globalEnv = this.globalEnvironment();
     for (const node of ast.program.body) {
-      lastEvaluated = this.evaluate(node, globalEnv);
+      try {
+        lastEvaluated = this.evaluate(node, globalEnv);
+      }
+      catch(error) {
+        throw new InterpreterError(String(error));
+      }
     }
     return lastEvaluated;
   }
@@ -37,3 +42,5 @@ export abstract class Int<
     } as Extract<AnyValue, { type: T; }>;
   }
 }
+
+class InterpreterError extends Error {}

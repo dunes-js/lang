@@ -19,9 +19,14 @@ export abstract class Lex<
 		this.#chars = new CharList(source);
 		const tokens = new TokenList<Type, Tag>();
 		while (this.#chars.length) {
-			const token = this.read();
-			if (token)
-				tokens.push(token);
+			try {
+        const token = this.read();
+        if (token)
+          tokens.push(token);
+      }
+      catch(error) {
+        throw new LexerError(String(error));
+      }
 		}
 		tokens.push(this.new("EOF", "$$EOF$$" as unknown as Char));
 		return tokens;
@@ -95,4 +100,8 @@ export abstract class Lex<
 		return x.toUpperCase() !== x.toLowerCase();
 	}
 
+}
+
+
+class LexerError extends Error {
 }

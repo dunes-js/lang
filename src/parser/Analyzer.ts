@@ -12,67 +12,67 @@ export class TokenAnalyzer<
     this.tokens = tokens;
   }
 
-  protected willContinue() {
+  willContinue() {
     return this.tokens[0]?.type !== "EOF";
   }
   
-  protected lookAhead<X>(look: LookAhead<Type, Tag, X>) {
+  lookAhead<X>(look: LookAhead<Type, Tag, X>) {
     return look(new TokenAnalyzer(this.tokens));
   }
 
-  protected eat<Ty extends TknType<Type>>(): Token<Ty, Tag> {
+  eat<Ty extends TknType<Type>>(): Token<Ty, Tag> {
     return this.tokens.shift() as Token<Ty, Tag>;
   }
 
-  protected type(): TknType<Type> {
+  type(): TknType<Type> {
     return this.tokens[0]!.type;
   }
 
-  protected has(tag: TagType<Tag>): boolean {
+  has(tag: TagType<Tag>): boolean {
     return this.tokens[0]!.has(tag)
   }
 
-  protected if<Ty extends TknType<Type>>(type: TknType<Ty>): Token<Ty, Tag> | null {
+  if<Ty extends TknType<Type>>(type: TknType<Ty>): Token<Ty, Tag> | null {
     if (type === this.tokens[0]!.type) {
       return this.tokens.shift() as Token<Ty, Tag>;
     }
     return null;
   }
-  protected is(type: TknType<Type>): boolean {
+  is(type: TknType<Type>): boolean {
     return type === this.tokens[0]!.type;
   }
 
-  protected isnt(type: TknType<Type>): boolean {
+  isnt(type: TknType<Type>): boolean {
     return type !== this.tokens[0]!.type;
   }
 
-  protected isAny(...types: TknType<Type>[]): boolean {
+  isAny(...types: TknType<Type>[]): boolean {
     return types.includes(this.tokens[0]!.type);
   }
 
-  protected isntAny(...types: TknType<Type>[]): boolean {
+  isntAny(...types: TknType<Type>[]): boolean {
     return !types.includes(this.tokens[0]!.type);
   }
 
-  protected expect<Ty extends TknType<Type>>(type: Ty, error: string): Token<Ty, Tag> {
+  expect<Ty extends TknType<Type>>(type: Ty, error: string): Token<Ty, Tag> {
     if (this.tokens[0]!.type !== type) {
       throw error;
     }
     return this.tokens.shift()! as Token<Ty, Tag>;
   }
 
-  protected expectTag<Ty extends TagType<Tag>>(tag: Ty, error: string): Token<Ty, Tag> {
+  expectTag<Ty extends TagType<Tag>>(tag: Ty, error: string): Token<Ty, Tag> {
     if (this.tokens[0]!.has(tag)) {
       return this.tokens.shift()! as Token<Ty, Tag>;
     }
     throw error;
   }
 
-  protected trim() {
+  trim() {
     while (this.willContinue() && this.has("WhiteSpace")) this.eat();
   }
 
-  protected eatTrim() {
+  eatTrim() {
     this.eat();
     this.trim()
   }

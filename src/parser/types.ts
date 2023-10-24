@@ -4,8 +4,8 @@ export interface Node<T extends PropertyKey> {
 	type: T
 }
 
-export interface LookAhead<Type extends string, Tag extends string, X> {
-  (tokens: TokenAnalyzer<Type, Tag>): X
+export interface LookAhead<Ta extends TokenAnalyzer<string, string>, X> {
+  (tokens: Ta): X
 }
 
 export type ParseOptions<Opts extends ProgramProps> = {

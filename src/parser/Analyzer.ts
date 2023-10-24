@@ -24,8 +24,9 @@ export class TokenAnalyzer<
     return this.#tokens[0]?.type !== "EOF";
   }
   
-  lookAhead<X>(look: LookAhead<Type, Tag, X>) {
-    return look(new TokenAnalyzer(this.#tokens));
+  lookAhead<X>(look: LookAhead<this, X>) {
+    // @ts-expect-error
+    return look(new this.constructor(this.#tokens));
   }
 
   eat<Ty extends TknType<Type>>(): Token<Ty, Tag> {
@@ -46,6 +47,7 @@ export class TokenAnalyzer<
     }
     return null;
   }
+  
   is(type: TknType<Type>, i = 0): boolean {
     return type === this.#tokens[i]!.type;
   }

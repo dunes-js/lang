@@ -26,7 +26,9 @@ export class TokenAnalyzer<
   
   lookAhead<X>(look: LookAhead<this, X>) {
     // @ts-expect-error
-    return look(new this.constructor(this.#tokens));
+    const n: this = new this.constructor();
+    n.tokens = [...this.tokens];
+    return look(n);
   }
 
   eat<Ty extends TknType<Type>>(): Token<Ty, Tag> {

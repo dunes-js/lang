@@ -7,7 +7,7 @@
   "types": "./lib/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git://github.com/omarfkuri/dunes.git"
+    "url": "git://github.com/dunes-js/lang.git"
   },
   "exports": {
     ".": {
